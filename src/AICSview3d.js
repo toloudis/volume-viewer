@@ -68,6 +68,14 @@ export class AICSview3d {
 
     this.image.setResolution(this.canvas3d);
 
+    var that = this;
+    this.image.onChannelDataReadyCallback = function() {
+        // ARTIFICIALLY ENABLE ONLY THE FIRST 3 CHANNELS
+        for (let i = 0; i < that.image.num_channels; ++i) {
+          that.image.setVolumeChannelEnabled(i, (i<3));
+        }
+    };
+
     this.canvas3d.animate_funcs.push(this.preRender.bind(this));
     this.canvas3d.animate_funcs.push(img.onAnimate.bind(img));
     this.canvas3d.onEnterVRCallback = () => {
@@ -176,6 +184,45 @@ export class AICSview3d {
     if (this.image) {
       this.image.setResolution(this.canvas3d);
     }
+  };
+
+
+  updateDensity(density) {
+    this.image.setDensity(density/100.0);
+  };
+  updateShadingMethod(isbrdf) {
+
+  };
+  updateShowLights(showlights) {
+
+  };
+  updateActiveChannels() {
+    this.image.fuse();
+  };
+  updateLuts() {
+    this.image.fuse();
+  };
+  updateMaterial(channelinfo) {
+    //Convert a hex value to its decimal value - the inputted hex must be in the
+    //	format of a hex triplet - the kind we use for HTML colours. The function
+    //	will return an array with three values.
+    function hex2num(hex) {
+      if(hex.charAt(0) === "#") hex = hex.slice(1); //Remove the '#' char - if there is one.
+      hex = hex.toUpperCase();
+      var hex_alphabets = "0123456789ABCDEF";
+      var value = new Array(3);
+      var k = 0;
+      var int1,int2;
+      for(var i=0;i<6;i+=2) {
+        int1 = hex_alphabets.indexOf(hex.charAt(i));
+        int2 = hex_alphabets.indexOf(hex.charAt(i+1)); 
+        value[k] = ((int1 * 16) + int2)/255.0;
+        k++;
+      }
+      return(value);
+    }
+    this.image.updateChannelColor(channelinfo.index, hex2num(channelinfo.diffuse));
+    this.image.fuse();
   };
 
 }

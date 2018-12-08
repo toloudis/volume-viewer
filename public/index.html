@@ -3,14 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <title>AICS 3D Volume Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.3/dat.gui.js"></script>
 </head>
 <body height="100%" width="100%">
-    <div id="volume-viewer" height="100%" width="100%"></div>
+    <div id="volume-viewer" height="611px" width="688px"></div>
     <button id="X">X</button>
     <button id="Y">Y</button>
     <button id="Z">Z</button>
     <button id="3D">3D</button>
     <button id="rotbtn">Turntable</button>
     <button id="axisbtn">Axis</button>
+    <br>Image:<select id="cellselecter" name="cell">
+        <option disabled selected value> -- select an image -- </option>
+        <option value="AICS-11_409_atlas.json">TOM20</option>
+        <option value="AICS-12_881_atlas.json">Tubulin</option>
+        <option value="AICS-13_319_atlas.json">LaminB</option>
+    </select>
 </body>
 </html>

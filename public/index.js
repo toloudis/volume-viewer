@@ -1,73 +1,237 @@
 import {
     AICSview3d,
+    AICSview3d_PT,
     AICSvolumeDrawable,
     AICSmakeVolumes,
     AICSvolumeLoader
 } from '../src';
 
 let el = document.getElementById("volume-viewer");
-let view3D = new AICSview3d(el);
+let view3D = new AICSview3d_PT(el);
+//let view3D = new AICSview3d(el);
 
-// PREPARE SOME TEST DATA TO TRY TO DISPLAY A VOLUME.
-let imgdata = {
-    // width := original full size image width
-    "width": 306,
-    // height := original full size image height
-    "height": 494,
-    "channels": 9,
-    "channel_names": ["DRAQ5", "EGFP", "Hoechst 33258", "TL Brightfield", "SEG_STRUCT", "SEG_Memb", "SEG_DNA", "CON_Memb", "CON_DNA"],
-    "rows": 7,
-    "cols": 10,
-    // tiles <= rows*cols, tiles is number of z slices
-    "tiles": 65,
-    "tile_width": 204,
-    "tile_height": 292,
-
-    // for webgl reasons, it is best for atlas_width and atlas_height to be <= 2048 
-    // and ideally a power of 2.
-
-    // These are the pixel dimensions of the png files in "images" below.
-    // atlas_width === cols*tile_width
-    "atlas_width": 2040,
-    // atlas_height === rows*tile_height
-    "atlas_height": 2044,
-
-    "pixel_size_x": 0.065,
-    "pixel_size_y": 0.065,
-    "pixel_size_z": 0.29,
-
-    "images": [{
-        "name": "AICS-10_5_5.ome.tif_atlas_0.png",
-        "channels": [0, 1, 2]
-    }, {
-        "name": "AICS-10_5_5.ome.tif_atlas_1.png",
-        "channels": [3, 4, 5]
-    }, {
-        "name": "AICS-10_5_5.ome.tif_atlas_2.png",
-        "channels": [6, 7, 8]
-    }],
-    "name": "AICS-10_5_5",
-    "status": "OK",
-    "version": "0.0.0",
-    "aicsImageVersion": "0.3.0"
+const presets = {
+    // channel window, level
+    "AICS-11_409_atlas.json":  [ [1,0.624], [1,0.933], [0.509, 0.869] ],
+    "AICS-12_881_atlas.json": [ [1,0.585], [1,0.734], [0.534, 0.844] ],
+    "AICS-13_319_atlas.json": [ [1,0.568], [1,0.666], [0.509, 0.912] ]
 };
 
 // generate some raw volume data
-var channelVolumes = [];
-for (var i = 0; i < imgdata.channels; ++i) {
-  if (i % 2 === 0) {
-    var sv = AICSmakeVolumes.createSphere(imgdata.tile_width, imgdata.tile_height, imgdata.tiles, 16);
-    channelVolumes.push(sv);
-  }
-  else{
-    var sv = AICSmakeVolumes.createTorus(imgdata.tile_width, imgdata.tile_height, imgdata.tiles, 32, 8);
-    channelVolumes.push(sv);
+// PREPARE SOME TEST DATA TO TRY TO DISPLAY A VOLUME.
+// let imgdata = {
+//     "channels": 9,
+//     "tiles": 65,
+//     "tile_width": 204,
+//     "tile_height": 292,
+// };
+// var channelVolumes = [];
+// for (var i = 0; i < imgdata.channels; ++i) {
+//   if (i % 2 === 0) {
+//     var sv = AICSmakeVolumes.createSphere(imgdata.tile_width, imgdata.tile_height, imgdata.tiles, 16);
+//     channelVolumes.push(sv);
+//   }
+//   else{
+//     var sv = AICSmakeVolumes.createTorus(imgdata.tile_width, imgdata.tile_height, imgdata.tiles, 32, 8);
+//     channelVolumes.push(sv);
 
-  }
+//   }
+// }
+
+const myState = {
+    file: "",
+    density: 50.0,
+    exposure: 0.75,
+    aperture: 0.0,
+    fov: 55,
+    focal_distance: 4.0,
+    skyTopIntensity: 1.0,
+    skyMidIntensity: 1.0,
+    skyBotIntensity: 1.0,
+    skyTopColor: [255, 255, 255],
+    skyMidColor: [255, 255, 255],
+    skyBotColor: [255, 255, 255],
+    lightColor: [255, 255, 255],
+    lightIntensity: 100.0,
+    lightDistance: 10.0,
+    lightTheta: 0.0,
+    lightPhi: 0.0,
+    lightSize: 1.0,
+    xmin: 0.0,
+    ymin: 0.0,
+    zmin: 0.0,
+    xmax: 1.0,
+    ymax: 1.0,
+    zmax: 1.0
+};
+let gui = null;
+
+function setupGui() {
+
+    gui = new dat.GUI();
+    //gui = new dat.GUI({autoPlace:false, width:200});
+
+    gui.add(myState, "density").max(100.0).min(0.0).step(0.001).onChange(function (value) {
+        view3D.updateDensity(value);
+    });
+
+    var cameragui = gui.addFolder("Camera");
+    cameragui.add(myState, "exposure").max(1.0).min(0.0).step(0.001).onChange(function (value) {
+    });
+    cameragui.add(myState, "aperture").max(0.1).min(0.0).step(0.001).onChange(function (value) {
+    });
+    cameragui.add(myState, "focal_distance").max(5.0).min(0.1).step(0.001).onChange(function (value) {
+    });
+    cameragui.add(myState, "fov").max(90.0).min(0.0).step(0.001).onChange(function (value) {
+    });
+
+    var clipping = gui.addFolder("Clipping Box");
+    clipping.add(myState, "xmin").max(1.0).min(0.0).step(0.001).onChange(function (value) {
+        view3D.updateClipRegion(myState.xmin, myState.xmax, myState.ymin, myState.ymax, myState.zmin, myState.zmax);
+    });
+    clipping.add(myState, "xmax").max(1.0).min(0.0).step(0.001).onChange(function (value) {
+        view3D.updateClipRegion(myState.xmin, myState.xmax, myState.ymin, myState.ymax, myState.zmin, myState.zmax);
+    });
+    clipping.add(myState, "ymin").max(1.0).min(0.0).step(0.001).onChange(function (value) {
+        view3D.updateClipRegion(myState.xmin, myState.xmax, myState.ymin, myState.ymax, myState.zmin, myState.zmax);
+    });
+    clipping.add(myState, "ymax").max(1.0).min(0.0).step(0.001).onChange(function (value) {
+        view3D.updateClipRegion(myState.xmin, myState.xmax, myState.ymin, myState.ymax, myState.zmin, myState.zmax);
+    });
+    clipping.add(myState, "zmin").max(1.0).min(0.0).step(0.001).onChange(function (value) {
+        view3D.updateClipRegion(myState.xmin, myState.xmax, myState.ymin, myState.ymax, myState.zmin, myState.zmax);
+    });
+    clipping.add(myState, "zmax").max(1.0).min(0.0).step(0.001).onChange(function (value) {
+        view3D.updateClipRegion(myState.xmin, myState.xmax, myState.ymin, myState.ymax, myState.zmin, myState.zmax);
+    });
+
+    var lighting = gui.addFolder("Lighting");
+    lighting.addColor(myState, "skyTopColor").name("Sky Top").onChange(function (value) {
+        view3D.updateLights(myState);
+    });
+    lighting.add(myState, "skyTopIntensity").max(100.0).min(0.01).step(0.1).onChange(function (value) {
+        view3D.updateLights(myState);
+    });
+    lighting.addColor(myState, "skyMidColor").name("Sky Mid").onChange(function (value) {
+        view3D.updateLights(myState);
+    });
+    lighting.add(myState, "skyMidIntensity").max(100.0).min(0.01).step(0.1).onChange(function (value) {
+        view3D.updateLights(myState);
+    });
+    lighting.addColor(myState, "skyBotColor").name("Sky Bottom").onChange(function (value) {
+        view3D.updateLights(myState);
+    });
+    lighting.add(myState, "skyBotIntensity").max(100.0).min(0.01).step(0.1).onChange(function (value) {
+        view3D.updateLights(myState);
+    });
+    lighting.add(myState, "lightDistance").max(100.0).min(0.0).step(0.1).onChange(function (value) {
+        view3D.updateLights(myState);
+    });
+    lighting.add(myState, "lightTheta").max(180.0).min(-180.0).step(1).onChange(function (value) {
+        view3D.updateLights(myState);
+    });
+    lighting.add(myState, "lightPhi").max(180.0).min(0.0).step(1).onChange(function (value) {
+        view3D.updateLights(myState);
+    });
+    lighting.add(myState, "lightSize").max(100.0).min(0.01).step(0.1).onChange(function (value) {
+        view3D.updateLights(myState);
+    });
+    lighting.add(myState, "lightIntensity").max(100.0).min(0.01).step(0.1).onChange(function (value) {
+        view3D.updateLights(myState);
+    });
+    lighting.addColor(myState, "lightColor").name("lightcolor").onChange(function (value) {
+        view3D.updateLights(myState);
+    });
+
+}
+
+dat.GUI.prototype.removeFolder = function (name) {
+    var folder = this.__folders[name];
+    if (!folder) {
+        return;
+    }
+    folder.close();
+    this.__ul.removeChild(folder.domElement.parentNode);
+    delete this.__folders[name];
+    this.onResize();
+}
+
+function showChannelUI(img) {
+
+    if (myState && myState.channelFolderNames) {
+        for (var i = 0; i < myState.channelFolderNames.length; ++i) {
+            gui.removeFolder(myState.channelFolderNames[i]);
+        }
+    }
+    
+    myState.infoObj = img.imageInfo;
+
+    myState.infoObj.channelGui = [];
+    const initcolors = [
+        [255, 0, 255],
+        [255, 255, 255],
+        [0, 255, 255]
+    ];
+    myState.channelFolderNames = []
+    for (var i = 0; i < myState.infoObj.channels; ++i) {
+        myState.infoObj.channelGui.push({
+            colorD: (i < 3) ? initcolors[i] : [255, 255, 255],
+            colorS: [0, 0, 0],
+            colorE: [0, 0, 0],
+            window: 1.0,
+            level: 0.5,
+            roughness: 0.0,
+            enabled: (i < 3) ? true : false
+        });
+        var f = gui.addFolder("Channel " + myState.infoObj.channel_names[i]);
+        myState.channelFolderNames.push("Channel " + myState.infoObj.channel_names[i]);
+        f.add(myState.infoObj.channelGui[i], "enabled").onChange(function (j) {
+            return function (value) {
+                view3D.image.setVolumeChannelEnabled(j, value ? true : false);
+                view3D.updateActiveChannels();
+            };
+        }(i));
+        f.addColor(myState.infoObj.channelGui[i], "colorD").name("Diffuse").onChange(function (j) {
+            return function (value) {
+                view3D.image.updateChannelColor(j, myState.infoObj.channelGui[j].colorD);
+                view3D.updateMaterial(myState.infoObj.channelGui);
+            };
+        }(i));
+        f.addColor(myState.infoObj.channelGui[i], "colorS").name("Specular").onChange(function (j) {
+            return function (value) {
+                view3D.updateMaterial(myState.infoObj.channelGui);
+            };
+        }(i));
+        f.addColor(myState.infoObj.channelGui[i], "colorE").name("Emissive").onChange(function (j) {
+            return function (value) {
+                view3D.updateMaterial(myState.infoObj.channelGui);
+            };
+        }(i));
+        f.add(myState.infoObj.channelGui[i], "window").max(1.0).min(0.0).step(0.001).onChange(function (j) {
+                return function (value) {
+                    view3D.image.channelData.channels[j].lutGenerator_windowLevel(value, myState.infoObj.channelGui[j].level);
+                    view3D.updateLuts();
+                }
+            }(i));
+
+        f.add(myState.infoObj.channelGui[i], "level").max(1.0).min(0.0).step(0.001).onChange(function (j) {
+                return function (value) {
+                    view3D.image.channelData.channels[j].lutGenerator_windowLevel(myState.infoObj.channelGui[j].window, value);
+                    view3D.updateLuts();
+                }
+            }(i));
+        f.add(myState.infoObj.channelGui[i], "roughness").max(100.0).min(0.0).onChange(function (j) {
+                return function (value) {
+                    view3D.updateMaterial(myState.infoObj.channelGui);
+                }
+            }(i));
+
+    }
+
 }
 
 function loadImageData(jsondata, volumedata) {
-    view3D.resize();
+   // view3D.resize();
     
     const aimg = new AICSvolumeDrawable(jsondata);
 
@@ -90,16 +254,14 @@ function loadImageData(jsondata, volumedata) {
         });
     }
 
+    showChannelUI(aimg);
+
     view3D.setCameraMode('3D');
     aimg.setDensity(0.1);
     aimg.setBrightness(1.0);
 
-    view3D.resize(null, 300, 300);
+    view3D.resize(null, 688*1.5, 610*1.5);
 }
-
-// switch the uncommented line to test with volume data or atlas data
-loadImageData(imgdata);
-//loadImageData(imgdata, channelVolumes);
 
 var xbtn = document.getElementById("X");
 xbtn.addEventListener("click", ()=>{view3D.setCameraMode('X');});
@@ -115,3 +277,46 @@ rotbtn.addEventListener("click", ()=>{isRot = !isRot; view3D.setAutoRotate(isRot
 var isAxis = false;
 var axisbtn = document.getElementById("axisbtn");
 axisbtn.addEventListener("click", ()=>{isAxis = !isAxis; view3D.setShowAxis(isAxis)});
+
+setupGui();
+
+//loadImageData(imgdata, channelVolumes);
+
+// switch the uncommented line to test with volume data or atlas data
+const urlParams = new URLSearchParams(window.location.search);
+const nameToLoad = urlParams.get('name');
+if (nameToLoad) {
+    const cellline = nameToLoad.split('_')[0];
+    const prefixdir = 'http://dev-aics-dtp-001/cellviewer-1-3-0/Cell-Viewer_Thumbnails/' + cellline + '/';
+    fetch(prefixdir + nameToLoad + '_atlas.json')
+    .then(function(response) {
+      return response.json();
+    })
+    .then(function(myJson) {
+        // prefix all the names in myJson.images
+        myJson.images.forEach(function(element) {
+            element.name = prefixdir + element.name;
+        });
+        loadImageData(myJson);
+    });  
+}
+else {
+    var cellselecter = document.getElementById("cellselecter");
+    cellselecter.addEventListener("change", (e)=> {
+        fetch(cellselecter.value)
+        .then(function(response) {
+          return response.json();
+        })
+        .then(function(myJson) {
+            if (view3D.volumeTexture) {
+                view3D.volumeTexture.dispose();
+                view3D.volumeTexture = null;
+            }
+    
+            let p = presets[cellselecter.value];
+            myJson.preset = p;
+            loadImageData(myJson);
+        });  
+    });
+}
+
