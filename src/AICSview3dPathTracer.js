@@ -184,7 +184,7 @@ export class AICSview3d_PT {
     this.image.setResolution(this.canvas3d);
 
     var that = this;
-    this.image.volume.onChannelDataReadyCallback = function() {
+    this.image.onChannelDataReadyCallback = function() {
       // if first 3 channels are loaded...
       if (that.image.volume.channels[0].loaded && 
         that.image.volume.channels[1].loaded && 
@@ -193,7 +193,7 @@ export class AICSview3d_PT {
         !that.volumeTexture) {
 
           // ARTIFICIALLY ENABLE ONLY THE FIRST 3 CHANNELS
-        for (let i = 0; i < that.image.num_channels; ++i) {
+        for (let i = 0; i < that.image.volume.num_channels; ++i) {
           that.image.setVolumeChannelEnabled(i, (i<3));
         }
         that.pathTracingUniforms.g_nChannels.value = 3;
@@ -201,7 +201,7 @@ export class AICSview3d_PT {
       
 
         // assemble 4 channels.
-        var sx = that.image.x, sy = that.image.y, sz = that.image.z;
+        var sx = that.image.volume.x, sy = that.image.volume.y, sz = that.image.volume.z;
         var data = new Uint8Array(sx*sy*sz * 4);
         data.fill(0);
         // array of 4 channels to look at. -1 means no channel active.
@@ -224,7 +224,7 @@ export class AICSview3d_PT {
           for (var iz = 0; iz < sz; ++iz) {
             for (var iy = 0; iy < sy; ++iy) {
               for (var ix = 0; ix < sx; ++ix) {
-                data[i + ix*4 + iy*4*sx + iz*4*sx*sy] = that.image.getChannel(ch).getIntensity(ix,iy,iz);
+                data[i + ix*4 + iy*4*sx + iz*4*sx*sy] = that.image.volume.getChannel(ch).getIntensity(ix,iy,iz);
               }
             }
           }
@@ -238,7 +238,7 @@ export class AICSview3d_PT {
 
         }
         // defaults to rgba and unsignedbytetype so dont need to supply format this time.
-        that.volumeTexture = new THREE.DataTexture3D(data, that.image.x, that.image.y, that.image.z);
+        that.volumeTexture = new THREE.DataTexture3D(data, that.image.volume.x, that.image.volume.y, that.image.volume.z);
         that.volumeTexture.minFilter = that.volumeTexture.magFilter = THREE.LinearFilter;
         that.volumeTexture.needsUpdate = true;
         that.pathTracingUniforms.volumeTexture.value = that.volumeTexture;
