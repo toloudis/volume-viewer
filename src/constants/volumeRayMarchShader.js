@@ -172,7 +172,7 @@ export const rayMarchingFragmentShaderSrc = [
     //'  // march along ray from front to back, accumulating color',
 
     //'  //estimate step length',
-    '  const int maxSteps = ##MAXSTEPS##;',
+    '  const int maxSteps = 512;',
     '  float csteps = clamp(float(BREAK_STEPS), 1.0, float(maxSteps));',
     '  float invstep = 1.0/csteps;',
     // special-casing the single slice to remove the random ray dither.
