@@ -184,12 +184,12 @@ export class AICSview3d_PT {
     this.image.setResolution(this.canvas3d);
 
     var that = this;
-    this.image.onChannelDataReadyCallback = function() {
+    this.image.volume.onChannelDataReadyCallback = function() {
       // if first 3 channels are loaded...
-      if (that.image.channelData.channels[0].loaded && 
-        that.image.channelData.channels[1].loaded && 
-        that.image.channelData.channels[2].loaded && 
-        that.image.channelData.channels[3].loaded &&
+      if (that.image.volume.channels[0].loaded && 
+        that.image.volume.channels[1].loaded && 
+        that.image.volume.channels[2].loaded && 
+        that.image.volume.channels[3].loaded &&
         !that.volumeTexture) {
 
           // ARTIFICIALLY ENABLE ONLY THE FIRST 3 CHANNELS
@@ -211,15 +211,15 @@ export class AICSview3d_PT {
             continue;
           }
   
-          if (that.image.imageInfo.preset) {
-            let p = that.image.imageInfo.preset;
-            that.image.channelData.channels[ch].lutGenerator_windowLevel(p[i][0], p[i][1]);
+          if (that.image.volume.imageInfo.preset) {
+            let p = that.image.volume.imageInfo.preset;
+            that.image.volume.channels[ch].lutGenerator_windowLevel(p[i][0], p[i][1]);
           }
-          const lut0 = new THREE.DataTexture(that.image.channelData.channels[ch].lut, 256, 1, THREE.RedFormat, THREE.UnsignedByteType);
+          const lut0 = new THREE.DataTexture(that.image.volume.channels[ch].lut, 256, 1, THREE.RedFormat, THREE.UnsignedByteType);
           lut0.needsUpdate = true;
           that.pathTracingUniforms.g_lutTexture.value[i] = lut0;
   
-          that.pathTracingUniforms.g_intensityMax.value.setComponent(i, that.image.channelData.channels[ch].histogram.dataMax / 255.0);
+          that.pathTracingUniforms.g_intensityMax.value.setComponent(i, that.image.volume.channels[ch].histogram.dataMax / 255.0);
 
           for (var iz = 0; iz < sz; ++iz) {
             for (var iy = 0; iy < sy; ++iy) {
@@ -246,7 +246,7 @@ export class AICSview3d_PT {
         console.log("GOT VOLUME TEXTURE");
 
     // bounds will go from 0 to PhysicalSize
-    const PhysicalSize = that.image.normalizedPhysicalSize;
+    const PhysicalSize = that.image.volume.normalizedPhysicalSize;
     let bbctr = new THREE.Vector3(PhysicalSize.x*0.5, PhysicalSize.y*0.5, PhysicalSize.z*0.5);
 
     if (that.controlChangeHandler)  {
@@ -469,7 +469,7 @@ export class AICSview3d_PT {
     this.pathTracingUniforms.gLights.value[1].m_Width = state.lightSize; 
     this.pathTracingUniforms.gLights.value[1].m_Height = state.lightSize; 
 
-    const PhysicalSize = this.image.normalizedPhysicalSize;
+    const PhysicalSize = this.image.volume.normalizedPhysicalSize;
     const bbctr = new THREE.Vector3(PhysicalSize.x*0.5, PhysicalSize.y*0.5, PhysicalSize.z*0.5);
 
     for (let i = 0; i < 2; ++i) {
@@ -516,7 +516,7 @@ export class AICSview3d_PT {
   }
 
   updateClipRegion(xmin, xmax, ymin, ymax, zmin, zmax) {
-    const PhysicalSize = this.image.normalizedPhysicalSize;
+    const PhysicalSize = this.image.volume.normalizedPhysicalSize;
     this.pathTracingUniforms.gClippedAaBbMin.value = new THREE.Vector3(xmin*PhysicalSize.x, ymin*PhysicalSize.y, zmin*PhysicalSize.z);
     this.pathTracingUniforms.gClippedAaBbMax.value = new THREE.Vector3(xmax*PhysicalSize.x, ymax*PhysicalSize.y, zmax*PhysicalSize.z);
     this.sampleCounter = 0.0;

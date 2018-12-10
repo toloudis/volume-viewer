@@ -164,7 +164,7 @@ function showChannelUI(img) {
         }
     }
     
-    myState.infoObj = img.imageInfo;
+    myState.infoObj = img.volume.imageInfo;
 
     myState.infoObj.channelGui = [];
     const initcolors = [
