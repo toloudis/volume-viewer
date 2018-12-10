@@ -1,57 +1,14 @@
 import AICSchannelData from './AICSchannelData.js';
+import AICSvolume from './AICSvolume.js';
 import FileSaver from './FileSaver.js';
 import { getColorByChannelIndex } from './constants/colors.js';
 import { defaultMaterialSettings } from './constants/materials.js';
-
 import './MarchingCubes.js';
 import NaiveSurfaceNets from './NaiveSurfaceNets.js';
 import './STLBinaryExporter.js';
 
 import 'three/examples/js/exporters/GLTFExporter.js';
 
-/**
- * Provide dimensions of the volume data, including dimensions for texture atlas data in which the volume z slices
- * are tiled across a single large 2d image plane.
- * @typedef {Object} imageInfo
- * @property {string} name Base name of image
- * @property {string} version schema version preferably in semver format.
- * @property {number} width Width of original volumetric data prior to downsampling
- * @property {number} height Height of original volumetric data prior to downsampling
- * @property {number} channels Number of channels
- * @property {number} tiles Number of tiles, which must be equal to the number of z-slices in original volumetric data
- * @property {number} pixel_size_x Size of pixel in volumetric data to be rendered, in x-dimension, unitless
- * @property {number} pixel_size_y Size of pixel in volumetric data to be rendered, in y-dimension, unitless
- * @property {number} pixel_size_z Size of pixel in volumetric data to be rendered, in z-dimension, unitless
- * @property {Array.<string>} channel_names Names of each of the channels to be rendered, in order. Unique identifier expected
- * @property {number} rows Number of rows in tile array in each image.  Note tiles <= rows*cols
- * @property {number} cols Number of columns in tile array in each image.  Note tiles <= rows*cols
- * @property {number} tile_width Width of each tile in volumetric dataset to be rendered, in pixels
- * @property {number} tile_height Height of each tile in volumetric dataset to be rendered, in pixels
- * @property {number} atlas_width Total width of image containing all the tiles, in pixels.  Note atlas_width === cols*tile_width
- * @property {number} atlas_height Total height of image containing all the tiles, in pixels. Note atlas_height === rows*tile_height
- * @example let imgdata = {
-  "width": 306,
-  "height": 494,
-  "channels": 9,
-  "channel_names": ["DRAQ5", "EGFP", "Hoechst 33258", "TL Brightfield", "SEG_STRUCT", "SEG_Memb", "SEG_DNA", "CON_Memb", "CON_DNA"],
-  "rows": 7,
-  "cols": 10,
-  "tiles": 65,
-  "tile_width": 204,
-  "tile_height": 292,
-  // for webgl reasons, it is best for atlas_width and atlas_height to be <= 2048 
-  // and ideally a power of 2.  This generally implies downsampling the original volume data for display in this viewer.
-  "atlas_width": 2040,
-  "atlas_height": 2044,
-  "pixel_size_x": 0.065,
-  "pixel_size_y": 0.065,
-  "pixel_size_z": 0.29,
-  "name": "AICS-10_5_5",
-  "status": "OK",
-  "version": "0.0.0",
-  "aicsImageVersion": "0.3.0"
-  };
- */
 
 /**
  * A renderable multichannel volume image with 8-bits per channel intensity values.
@@ -59,30 +16,11 @@ import 'three/examples/js/exporters/GLTFExporter.js';
  * @param {imageInfo} imageInfo 
  */
 function AICSvolumeDrawable(imageInfo) {
-  this.imageInfo = imageInfo;
-  this.name = imageInfo.name;
-
-  // clean up some possibly bad data.
-  this.imageInfo.pixel_size_x = imageInfo.pixel_size_x || 1.0;
-  this.imageInfo.pixel_size_y = imageInfo.pixel_size_y || 1.0;
-  this.imageInfo.pixel_size_z = imageInfo.pixel_size_z || 1.0;
-
-  this.pixel_size = [
-    this.imageInfo.pixel_size_x,
-    this.imageInfo.pixel_size_y,
-    this.imageInfo.pixel_size_z
-  ];
-  this.x = imageInfo.tile_width;
-  this.y = imageInfo.tile_height;
-  this.z = imageInfo.tiles;
-  this.t = 1;
-
-
-  this.num_channels = imageInfo.channels;
   
-  this.channel_names = this.imageInfo.channel_names.slice();
-  this.channel_colors_default = imageInfo.channel_colors ? imageInfo.channel_colors.slice() : this.channel_names.map((name, index) => getColorByChannelIndex(index));
-  this.channel_colors = this.channel_colors_default.slice();
+  this.volume = new AICSvolume(imageInfo);
+  this.volume.onChannelDataReadyCallback = this.onChannelLoaded.bind(this);
+
+  this.channel_colors = this.volume.channel_colors_default.slice();
 
   this.fusion = this.channel_colors.map((col, index) => {
     let rgbColor;
@@ -118,13 +56,6 @@ function AICSvolumeDrawable(imageInfo) {
     bmin: new THREE.Vector3(-0.5, -0.5, -0.5),
     bmax: new THREE.Vector3(0.5, 0.5, 0.5)
   };
-
-  this.channelData = new AICSchannelData({
-    count: this.num_channels,
-    atlasSize:[this.imageInfo.atlas_width, this.imageInfo.atlas_height],
-    volumeSize:[this.imageInfo.tile_width, this.imageInfo.tile_height, this.z],
-    channelNames:this.channel_names
-  }, this.redraw, this.onChannelLoaded.bind(this));
 
   this.uniforms = {
     'iResolution': {
@@ -504,18 +435,45 @@ function AICSvolumeDrawable(imageInfo) {
   this.cubeMesh.material = threeMaterial;
 
 
-  this.setUniform("ATLAS_X", this.imageInfo.cols);
-  this.setUniform("ATLAS_Y", this.imageInfo.rows);
-  this.setUniform("SLICES", this.z);
-
-  this.setVoxelSize(this.pixel_size);
+  this.setUniform("ATLAS_X", this.volume.imageInfo.cols);
+  this.setUniform("ATLAS_Y", this.volume.imageInfo.rows);
+  this.setUniform("SLICES", this.volume.z);
 
   var cx = 0.0;
   var cz = 0.0;
   var cy = 0.0;
   this.sceneRoot.position.set(cx,cy,cz);
   this.maxSteps = 256;
+
+  this.setScale(this.volume.scale);
+
+  this.channelData = new AICSchannelData(
+    this.volume.imageInfo.atlas_width, 
+    this.volume.imageInfo.atlas_height, 
+    this.redraw, 
+    this.onChannelLoaded.bind(this)
+  );
 }
+
+/**
+ * Assign volume data via a 2d array containing the z slices as tiles across it.  Assumes that the incoming data is consistent with the image's pre-existing imageInfo tile metadata.
+ * @param {number} channelIndex 
+ * @param {Uint8Array} atlasdata 
+ * @param {number} atlaswidth 
+ * @param {number} atlasheight 
+ */
+AICSvolumeDrawable.prototype.setChannelDataFromAtlas = function(channelIndex, atlasdata, atlaswidth, atlasheight) {
+  return this.volume.setChannelDataFromAtlas(channelIndex, atlasdata, atlaswidth, atlasheight);
+};
+
+/**
+ * Assign volume data as a 3d array ordered x,y,z. The xy size must be equal to tilewidth*tileheight from the imageInfo used to construct this AICSvolume.  Assumes that the incoming data is consistent with the image's pre-existing imageInfo tile metadata.
+ * @param {number} channelIndex 
+ * @param {Uint8Array} volumeData 
+ */
+AICSvolumeDrawable.prototype.setChannelDataFromVolume = function(channelIndex, volumeData) {
+  return this.volume.setChannelDataFromVolume(channelIndex, volumeData);
+};
 
 AICSvolumeDrawable.prototype.resetSampleRate = function() {
   this.steps = this.maxSteps / 2;
@@ -659,10 +617,10 @@ AICSvolumeDrawable.prototype.createMaterialForChannel = function(channelIndex, a
 };
 
 AICSvolumeDrawable.prototype.generateIsosurfaceGeometry = function(channelIndex, isovalue) {
-  if (!this.channelData) {
+  if (!this.volume) {
     return [];
   }
-  const volumedata = this.channelData.channels[channelIndex].volumeData;
+  const volumedata = this.volume.channels[channelIndex].volumeData;
 
   const marchingcubes = true;
 
@@ -831,16 +789,16 @@ AICSvolumeDrawable.prototype.destroyIsosurface = function(channel) {
 };
 
 AICSvolumeDrawable.prototype.fuse = function() {
-  if (!this.channelData) {
+  if (!this.volume) {
     return;
   }
-  //if (!this.channelData.loaded) {
+  //if (!this.volume.loaded) {
   //	return;
   //}
 
   //'m' for max or 'a' for avg
   var fusionType = 'm';
-  this.channelData.fuse(this.fusion, fusionType);
+  this.channelData.fuse(this.fusion, fusionType, this.volume.channels);
 
   // update to fused texture
   this.setUniform('textureAtlas', this.channelData.fusedTexture);
@@ -900,10 +858,12 @@ AICSvolumeDrawable.prototype.channelNames = function() {
 };
 
 AICSvolumeDrawable.prototype.getChannel = function(channelIndex) {
-  return this.channelData.channels[channelIndex];
+  return this.volume.channels[channelIndex];
 };
 
 AICSvolumeDrawable.prototype.onChannelLoaded = function(batch) {
+  this.channelData.onChannelLoaded(batch, this.volume.channels);
+
   // any channels not yet loaded must just be set to 0 color for this fuse.
   this.fuse();
 
@@ -914,11 +874,7 @@ AICSvolumeDrawable.prototype.onChannelLoaded = function(batch) {
     if (this.meshrep[idx]) {
       this.updateIsovalue(idx, this.getIsovalue(idx));
     }
-    if (this.onChannelDataReadyCallback) {
-      this.onChannelDataReadyCallback(idx);
-    }
   }
-
 };
 
 /**
@@ -1067,31 +1023,6 @@ AICSvolumeDrawable.prototype.getBrightness = function() {
 };
 
 /**
- * Assign volume data via a 2d array containing the z slices as tiles across it.  Assumes that the incoming data is consistent with the image's pre-existing imageInfo tile metadata.
- * @param {number} channelIndex 
- * @param {Uint8Array} atlasdata 
- * @param {number} atlaswidth 
- * @param {number} atlasheight 
- */
-AICSvolumeDrawable.prototype.setChannelDataFromAtlas = function(channelIndex, atlasdata, atlaswidth, atlasheight) {
-  this.channelData.channels[channelIndex].setBits(atlasdata, atlaswidth, atlasheight);
-  this.channelData.channels[channelIndex].unpackVolume(this.channelData.options);  
-  this.channelData.onChannelLoaded.call(this.channelData, [channelIndex]);
-};
-
-// ASSUMES that this.channelData.options is already set and incoming data is consistent with it
-/**
- * Assign volume data as a 3d array ordered x,y,z. The xy size must be equal to tilewidth*tileheight from the imageInfo used to construct this AICSvolumeDrawable.  Assumes that the incoming data is consistent with the image's pre-existing imageInfo tile metadata.
- * @param {number} channelIndex 
- * @param {Uint8Array} volumeData 
- */
-AICSvolumeDrawable.prototype.setChannelDataFromVolume = function(channelIndex, volumeData) {
-  this.channelData.channels[channelIndex].setFromVolumeData(volumeData, this.channelData.options);
-  this.channelData.onChannelLoaded.call(this.channelData, [channelIndex]);
-};
-
-// TODO: decide if this should update imageInfo or not. For now, leave imageInfo alone as the "original" data
-/**
  * Add a new channel ready to receive data from one of the setChannelDataFrom* calls.
  * Name and color will be defaulted if not provided. For now, leave imageInfo alone as the "original" data
  * @param {string} name 
@@ -1099,11 +1030,7 @@ AICSvolumeDrawable.prototype.setChannelDataFromVolume = function(channelIndex, v
  */
 AICSvolumeDrawable.prototype.appendEmptyChannel = function(name, color) {
   let idx = this.num_channels;
-  let chname = name  || "channel_"+idx;
   let chcolor = color || getColorByChannelIndex(idx);
-  this.num_channels += 1;
-  this.channel_names.push(chname);
-  this.channel_colors_default.push(chcolor);
   this.channel_colors.push(chcolor);
   this.fusion.push({
     chIndex: idx,

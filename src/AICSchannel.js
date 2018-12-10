@@ -49,6 +49,7 @@ function AICSchannel(name) {
 }
 
 // give the channel fresh data and initialize from that data
+// data is formatted as a texture atlas where each tile is a z slice of the volume
 AICSchannel.prototype.setBits = function(bitsArray, w, h) {
   this.imgData = {data:bitsArray, width:w, height:h};
   this.loaded = true;
@@ -59,15 +60,14 @@ AICSchannel.prototype.setBits = function(bitsArray, w, h) {
   // this.lutControlPoints = [{x:0, opacity:0, color:"gray"}, {x:255, opacity:1.0, color:"gray"}];
 };
 
-// let's rearrange voldata into a 3d array.  
-// it is assumed to be coming in as a flat Uint8Array of size options.volumeSize[0]*[1]*[2] 
+// let's rearrange this.imgData.data into a 3d array.  
+// it is assumed to be coming in as a flat Uint8Array of size x*y*z 
 // with x*y*z layout (first row of first plane is the first data in the layout, 
 // then second row of first plane, etc)
-AICSchannel.prototype.unpackVolume = function(options)
+AICSchannel.prototype.unpackVolumeFromAtlas = function(x, y, z)
 {
   var volimgdata = this.imgData.data;
 
-  var x = options.volumeSize[0], y = options.volumeSize[1], z = options.volumeSize[2];
   this.volumeData = new Uint8Array(x*y*z);
 
   var num_xtiles = this.imgData.width / x;
@@ -90,9 +90,9 @@ AICSchannel.prototype.unpackVolume = function(options)
 
 
 // give the channel fresh volume data and initialize from that data
-AICSchannel.prototype.setFromVolumeData = function(bitsArray, options) {
+AICSchannel.prototype.setFromVolumeData = function(bitsArray, vx, vy, vz, ax, ay) {
   this.volumeData = bitsArray;
-  this.packToAtlas(options);
+  this.packToAtlas(vx, vy, vz, ax, ay);
   this.loaded = true;
   this.histogram = new Histogram(this.volumeData);
 
@@ -103,32 +103,32 @@ AICSchannel.prototype.setFromVolumeData = function(bitsArray, options) {
 
 
 // given this.volumeData, let's unpack it into a flat textureatlas and fill up this.imgData.
-AICSchannel.prototype.packToAtlas = function(options)
+AICSchannel.prototype.packToAtlas = function(vx, vy, vz, ax, ay)
 {
   // big assumptions:
   // atlassize is a perfect multiple of volumesize in both x and y
-  // options.atlasSize[0] % options.volumeSize[0] == 0
-  // options.atlasSize[1] % options.volumeSize[1] == 0
+  // ax % vx == 0
+  // ay % vy == 0
   // and num slices <= num possible slices in atlas.
-  // (options.atlasSize[0]/options.volumeSize[0]) * (options.atlasSize[1]/options.volumeSize[1]) >= options.volumeSize[2]
-  if ((options.atlasSize[0] % options.volumeSize[0] !== 0) ||
-    (options.atlasSize[1] % options.volumeSize[1] !== 0) || 
-    ((options.atlasSize[0]/options.volumeSize[0]) * (options.atlasSize[1]/options.volumeSize[1]) < options.volumeSize[2]) ) {
+  // (ax/vx) * (ay/vy) >= vz
+  if ((ax % vx !== 0) ||
+    (ay % vy !== 0) || 
+    ((ax/vx) * (ay/vy) < vz) ) {
     console.log("ERROR - atlas and volume dims are inconsistent");
-    console.log(options);
+    console.log(ax, ay, vx, vy, vz);
   }
 
   this.imgData = {
-    width: options.atlasSize[0],
-    height: options.atlasSize[1],
-    data: new Uint8Array(options.atlasSize[0]* options.atlasSize[1])
+    width: ax,
+    height: ay,
+    data: new Uint8Array(ax * ay)
   };
   this.imgData.data.fill(0);
 
   // deposit slices one by one into the imgData.data from volData.
   var volimgdata = this.imgData.data;
 
-  var x = options.volumeSize[0], y = options.volumeSize[1], z = options.volumeSize[2];
+  var x = vx, y = vy, z = vz;
 
   var num_xtiles = this.imgData.width / x;
   var atlasrow = this.imgData.width;

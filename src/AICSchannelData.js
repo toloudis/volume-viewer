@@ -1,26 +1,14 @@
-import AICSchannel from './AICSchannel.js';
 import MyWorker from './AICSfuseWorker';
 
 // This is the owner of all channel data (a whole multi channel tiff stack expressed as a series of 8bit texture atlases)
-function AICSchannelData(options, redraw, channelLoadedCb) {
-  // resize the image by this factor! (depend on device type cpu capabilities?)
-  this.scale = 1.0;
-
-  // all the image source info including channel file urls
-  this.options = options;
+function AICSchannelData(atlasX, atlasY, redraw, channelLoadedCb) {
 
   // function to call when image is ready to redraw
   this.redraw = redraw;
 
-  // channel data stored here
-  this.channels = [];
-  for (var i = 0; i < options.count; ++i) {
-    this.channels.push(new AICSchannel(options.channelNames[i]));
-  }
-
   // allow for resizing
-  this.width = Math.floor(options.atlasSize[0]*this.scale);
-  this.height = Math.floor(options.atlasSize[1]*this.scale);
+  this.width = atlasX;
+  this.height = atlasY;
 
   // cpu memory buffer with the combined rgba texture atlas for display
   this.fused = new Uint8Array(this.width * this.height * 4);
@@ -81,7 +69,6 @@ AICSchannelData.prototype.setupWorkers = function() {
   // Function called when a job is finished
   var me = this;
   var onWorkEnded = function (e) {
-    //console.log("WORKER ENDED");
     me.fuseWorkersWorking++;
     // copy e.data.data into fused
     me.fused.set(e.data.data, Math.floor(e.data.workerindex*(npx/me.workersCount))*4);
@@ -97,9 +84,10 @@ AICSchannelData.prototype.setupWorkers = function() {
       // if there are any fusion requests in queue, execute the next one now.
       me.isFusing = false;
       if (me.fuseRequested) {
-        me.fuse(me.fuseRequested, me.fuseMethodRequested);
+        me.fuse(me.fuseRequested, me.fuseMethodRequested, me.channelsDataToFuse);
       }
       me.fuseRequested = false;
+      me.channelsDataToFuse = null;
     }
   };
 
@@ -116,7 +104,7 @@ AICSchannelData.prototype.setupWorkers = function() {
 
 
 // batch is array containing which channels were just loaded
-AICSchannelData.prototype.onChannelLoaded = function(batch) {
+AICSchannelData.prototype.onChannelLoaded = function(batch, channels) {
   var npx = this.height*this.width;
   // pass channel data to workers
   for (var i = 0; i < this.workersCount; ++i) {
@@ -124,7 +112,7 @@ AICSchannelData.prototype.onChannelLoaded = function(batch) {
     for (var j = 0; j < batch.length; ++j) {
       var channelIndex = batch[j];
       // chop up the arrays. this is a copy operation!
-      var arr = this.channels[channelIndex].imgData.data.buffer.slice(Math.floor(i*(npx/this.workersCount)), Math.floor((i+1)*(npx/this.workersCount) - 1));
+      var arr = channels[channelIndex].imgData.data.buffer.slice(Math.floor(i*(npx/this.workersCount)), Math.floor((i+1)*(npx/this.workersCount) - 1));
       //console.log(arr.byteLength);
       var workerData = {
         msgtype:"channeldata",
@@ -140,20 +128,15 @@ AICSchannelData.prototype.onChannelLoaded = function(batch) {
     }
   }
 
-  this.onChannelLoadedCallback(batch);
+  //this.onChannelLoadedCallback(batch);
 
-  // check to see if all channels are now loaded, and fire an event(?)
-  if (this.channels.every(function(element,index,array) {return element.loaded;})) {
-    this.loaded = true;
-    //console.log("END DOWNLOAD DATA");
-  }
 };
 
 AICSchannelData.prototype.getHistogram = function(channelIndex) {
   return this.channels[channelIndex].imgData ? this.channels[channelIndex].imgData.histogram : [];
 };
 
-AICSchannelData.prototype.fuse = function(combination, fuseMethod) {
+AICSchannelData.prototype.fuse = function(combination, fuseMethod, channels) {
   fuseMethod = fuseMethod || "m";
 
   // we can fuse if we have any loaded channels that are showing. 
@@ -161,9 +144,9 @@ AICSchannelData.prototype.fuse = function(combination, fuseMethod) {
   for (var i = 0; i < combination.length; ++i) {
     var c = combination[i];
     var idx = c.chIndex;
-    if (c.rgbColor && this.channels[idx].loaded) {
+    if (c.rgbColor && channels[idx].loaded) {
       // set the lut in this fuse combination.
-      c.lut = this.channels[idx].lut;
+      c.lut = channels[idx].lut;
       canFuse = true;
       //break;
     }
@@ -176,18 +159,19 @@ AICSchannelData.prototype.fuse = function(combination, fuseMethod) {
   // Perform all calculations in current thread as usual
   if (this.useSingleThread || !window.Worker) {
     // console.log("SINGLE THREADED");
-    this.singleThreadedFuse(combination);
+    this.singleThreadedFuse(combination, channels);
     if (this.redraw) {
       this.redraw();
     }
     return;
   }
 
-  // TODO: keep a queue of a maximum of 1 fuse request at a time.
+  // Keep a queue of a maximum of 1 fuse request at a time.
   // if 1 fuse is already happening, queue the next one
   // if 1 is queued, replace it with the latest.
   if (this.isFusing) {
     this.fuseRequested = combination;
+    this.channelsDataToFuse = channels;
     this.fuseMethodRequested = fuseMethod;
     return;
   }
@@ -195,6 +179,7 @@ AICSchannelData.prototype.fuse = function(combination, fuseMethod) {
   // We will break up the image into one piece for each web-worker
   // can we assert that npx is a perfect multiple of workersCount??
   this.fuseWorkersWorking = 0;
+  this.isFusing = true;
   //  var segmentLength = npx / workersCount; // This is the length of array sent to the worker
   //  var blockSize = this.height / workersCount; // Height of the picture chunk for every worker
 
@@ -206,7 +191,7 @@ AICSchannelData.prototype.fuse = function(combination, fuseMethod) {
 };
 
 // sum over [{chIndex, rgbColor}]
-AICSchannelData.prototype.singleThreadedFuse = function(combination) {
+AICSchannelData.prototype.singleThreadedFuse = function(combination, channels) {
   //console.log("BEGIN");
 
   // explore some faster ways to fuse here...
@@ -230,14 +215,14 @@ AICSchannelData.prototype.singleThreadedFuse = function(combination) {
   for (i = 0; i < cl; ++i) {
     c = combination[i];
     idx = c.chIndex;
-    if (!this.channels[idx].loaded) {
+    if (!channels[idx].loaded) {
       continue;
     }
     if (c.rgbColor) {
       r = c.rgbColor[0]/255.0;
       g = c.rgbColor[1]/255.0;
       b = c.rgbColor[2]/255.0;
-      channeldata = this.channels[idx].imgData.data;
+      channeldata = channels[idx].imgData.data;
       for (cx = 0, fx = 0; cx < npx; cx+=1, fx+=4) {
         value = channeldata[cx];
         value = c.lut[value];//this.channels[idx].lut[value];
@@ -278,13 +263,6 @@ AICSchannelData.prototype.setChannelAsMask = function(idx) {
   this.maskChannelLoaded = true;
   this.maskChannelIndex = idx;
   return true;
-};
-
-AICSchannelData.prototype.appendEmptyChannel = function(chname) {
-  this.channels.push(new AICSchannel(chname));
-  this.options.count += 1;
-
-  this.loaded = false;
 };
 
 export default AICSchannelData;
