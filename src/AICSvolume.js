@@ -148,16 +148,9 @@ AICSvolume.prototype.getChannel = function(channelIndex) {
 };
 
 AICSvolume.prototype.onChannelLoaded = function(batch) {
-  for (var j = 0; j < batch.length; ++j) {
-    var idx = batch[j];
-    if (this.onChannelDataReadyCallback) {
-      this.onChannelDataReadyCallback([idx]);
-    }
-  }
   // check to see if all channels are now loaded, and fire an event(?)
   if (this.channels.every(function(element,index,array) {return element.loaded;})) {
     this.loaded = true;
-    //console.log("END DOWNLOAD DATA");
   }
 };
 
@@ -171,7 +164,7 @@ AICSvolume.prototype.onChannelLoaded = function(batch) {
 AICSvolume.prototype.setChannelDataFromAtlas = function(channelIndex, atlasdata, atlaswidth, atlasheight) {
   this.channels[channelIndex].setBits(atlasdata, atlaswidth, atlasheight);
   this.channels[channelIndex].unpackVolumeFromAtlas(this.x, this.y, this.z);  
-  this.onChannelLoaded.call(this, [channelIndex]);
+  this.onChannelLoaded([channelIndex]);
 };
 
 // ASSUMES that this.channelData.options is already set and incoming data is consistent with it
@@ -182,7 +175,7 @@ AICSvolume.prototype.setChannelDataFromAtlas = function(channelIndex, atlasdata,
  */
 AICSvolume.prototype.setChannelDataFromVolume = function(channelIndex, volumeData) {
   this.channels[channelIndex].setFromVolumeData(volumeData, this.x, this.y, this.z, this.atlasSize[0], this.atlasSize[1]);
-  this.onChannelLoaded.call(this, [channelIndex]);
+  this.onChannelLoaded([channelIndex]);
 };
 
 // TODO: decide if this should update imageInfo or not. For now, leave imageInfo alone as the "original" data

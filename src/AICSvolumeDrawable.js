@@ -23,7 +23,7 @@ import 'three/examples/js/exporters/GLTFExporter.js';
 function AICSvolumeDrawable(imageInfo) {
   
   this.volume = new AICSvolume(imageInfo);
-  this.volume.onChannelDataReadyCallback = this.onChannelLoaded.bind(this);
+  this.onChannelDataReadyCallback = null;
 
   this.channel_colors = this.volume.channel_colors_default.slice();
 
@@ -93,8 +93,7 @@ function AICSvolumeDrawable(imageInfo) {
   this.channelData = new AICSchannelData(
     this.volume.imageInfo.atlas_width, 
     this.volume.imageInfo.atlas_height, 
-    this.redraw, 
-    this.onChannelLoaded.bind(this)
+    this.redraw
   );
 }
 
@@ -106,7 +105,8 @@ function AICSvolumeDrawable(imageInfo) {
  * @param {number} atlasheight 
  */
 AICSvolumeDrawable.prototype.setChannelDataFromAtlas = function(channelIndex, atlasdata, atlaswidth, atlasheight) {
-  return this.volume.setChannelDataFromAtlas(channelIndex, atlasdata, atlaswidth, atlasheight);
+  this.volume.setChannelDataFromAtlas(channelIndex, atlasdata, atlaswidth, atlasheight);
+  this.onChannelLoaded([channelIndex]);
 };
 
 /**
@@ -115,7 +115,8 @@ AICSvolumeDrawable.prototype.setChannelDataFromAtlas = function(channelIndex, at
  * @param {Uint8Array} volumeData 
  */
 AICSvolumeDrawable.prototype.setChannelDataFromVolume = function(channelIndex, volumeData) {
-  return this.volume.setChannelDataFromVolume(channelIndex, volumeData);
+  this.volume.setChannelDataFromVolume(channelIndex, volumeData);
+  this.onChannelLoaded([channelIndex]);
 };
 
 AICSvolumeDrawable.prototype.resetSampleRate = function() {
@@ -501,10 +502,11 @@ AICSvolumeDrawable.prototype.channelNames = function() {
 };
 
 AICSvolumeDrawable.prototype.getChannel = function(channelIndex) {
-  return this.volume.channels[channelIndex];
+  return this.volume.getChannel(channelIndex);
 };
 
 AICSvolumeDrawable.prototype.onChannelLoaded = function(batch) {
+  // tell the fuse workers that new channel data arrived
   this.channelData.onChannelLoaded(batch, this.volume.channels);
 
   // any channels not yet loaded must just be set to 0 color for this fuse.
@@ -512,11 +514,15 @@ AICSvolumeDrawable.prototype.onChannelLoaded = function(batch) {
 
   for (var j = 0; j < batch.length; ++j) {
     var idx = batch[j];
-
     // if an isosurface was created before the channel data arrived, we need to re-calculate it now.
     if (this.meshrep[idx]) {
       this.updateIsovalue(idx, this.getIsovalue(idx));
     }
+  }
+
+  // let the outside world have a chance
+  if (this.onChannelDataReadyCallback) {
+    this.onChannelDataReadyCallback();
   }
 };
 

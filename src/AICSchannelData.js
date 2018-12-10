@@ -2,7 +2,7 @@ import MyWorker from './AICSfuseWorker';
 
 // This is the owner of the fused RGBA volume texture atlas, and the mask texture atlas.
 // This module is responsible for updating the fused texture, given the read-only volume channel data.
-function AICSchannelData(atlasX, atlasY, redraw, channelLoadedCb) {
+function AICSchannelData(atlasX, atlasY, redraw) {
 
   // function to call when image is ready to redraw
   this.redraw = redraw;
@@ -38,9 +38,6 @@ function AICSchannelData(atlasX, atlasY, redraw, channelLoadedCb) {
   this.fuseWorkersWorking = 0;
 
   this.setupWorkers();
-
-  // callback for batch observer (channel data arrives in sets of 3 packed into rgb of a png file)
-  this.onChannelLoadedCallback = channelLoadedCb || function() {};
 };
 
 AICSchannelData.prototype.cleanup = function() {
@@ -105,6 +102,7 @@ AICSchannelData.prototype.setupWorkers = function() {
 
 
 // batch is array containing which channels were just loaded
+// channels is the array containing the channel data.
 AICSchannelData.prototype.onChannelLoaded = function(batch, channels) {
   var npx = this.height*this.width;
   // pass channel data to workers
@@ -128,9 +126,6 @@ AICSchannelData.prototype.onChannelLoaded = function(batch, channels) {
       this.workers[i].postMessage(workerData, [workerData.data]);
     }
   }
-
-  //this.onChannelLoadedCallback(batch);
-
 };
 
 AICSchannelData.prototype.getHistogram = function(channelIndex) {
