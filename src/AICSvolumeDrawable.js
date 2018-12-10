@@ -694,4 +694,16 @@ AICSvolumeDrawable.prototype.setChannelAsMask = function(channelIndex) {
   return this.channelData.setChannelAsMask(channelIndex);
 };
 
+/**
+ * Get a value from the volume data
+ * @return {number} the intensity value from the given channel at the given xyz location
+ * @param {number} c The channel index
+ * @param {number} x 
+ * @param {number} y 
+ * @param {number} z 
+ */
+AICSvolumeDrawable.prototype.getIntensity = function(c, x, y, z) {
+  return this.volume.getIntensity(c, x, y, z);
+};
+
 export default AICSvolumeDrawable;

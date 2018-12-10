@@ -205,4 +205,16 @@ AICSvolume.prototype.appendEmptyChannel = function(name, color) {
   return idx;
 };
 
+/**
+ * Get a value from the volume data
+ * @return {number} the intensity value from the given channel at the given xyz location
+ * @param {number} c The channel index
+ * @param {number} x 
+ * @param {number} y 
+ * @param {number} z 
+ */
+AICSvolume.prototype.getIntensity = function(c, x, y, z) {
+    return this.channels[c].getIntensity(x, y, z);
+};
+
 export default AICSvolume;

@@ -94,6 +94,9 @@ describe("test volume", () => {
             
             const c1 = v.getChannel(1);
             checkChannelDataConstruction(c1, 1, testimgdata);
+
+            expect(v.getIntensity(1, Math.floor(v.x/2), Math.floor(v.y/2), Math.floor(v.z/2))).to.equal(255);
+            expect(v.getIntensity(1, 0, 0, 0)).to.equal(0);
         });
 
     });

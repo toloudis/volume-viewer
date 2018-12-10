@@ -48,6 +48,10 @@ function AICSchannel(name) {
   this.name = name;
 }
 
+AICSchannel.prototype.getIntensity = function(x,y,z) {
+  return this.volumeData[x + y*(this.dims[0]) + z*(this.dims[0]*this.dims[1])];
+};
+
 // give the channel fresh data and initialize from that data
 // data is formatted as a texture atlas where each tile is a z slice of the volume
 AICSchannel.prototype.setBits = function(bitsArray, w, h) {
@@ -68,6 +72,7 @@ AICSchannel.prototype.unpackVolumeFromAtlas = function(x, y, z)
 {
   var volimgdata = this.imgData.data;
 
+  this.dims = [x, y, z];
   this.volumeData = new Uint8Array(x*y*z);
 
   var num_xtiles = this.imgData.width / x;
@@ -91,6 +96,7 @@ AICSchannel.prototype.unpackVolumeFromAtlas = function(x, y, z)
 
 // give the channel fresh volume data and initialize from that data
 AICSchannel.prototype.setFromVolumeData = function(bitsArray, vx, vy, vz, ax, ay) {
+  this.dims = [vx, vy, vz];
   this.volumeData = bitsArray;
   this.packToAtlas(vx, vy, vz, ax, ay);
   this.loaded = true;
