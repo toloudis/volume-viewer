@@ -1,6 +1,7 @@
 import MyWorker from './AICSfuseWorker';
 
-// This is the owner of all channel data (a whole multi channel tiff stack expressed as a series of 8bit texture atlases)
+// This is the owner of the fused RGBA volume texture atlas, and the mask texture atlas.
+// This module is responsible for updating the fused texture, given the read-only volume channel data.
 function AICSchannelData(atlasX, atlasY, redraw, channelLoadedCb) {
 
   // function to call when image is ready to redraw
