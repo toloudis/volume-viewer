@@ -185,23 +185,24 @@ export class AICSview3d_PT {
 
     var that = this;
     this.image.onChannelDataReadyCallback = function() {
+      const volume = that.image.volume;
       // if first 3 channels are loaded...
-      if (that.image.volume.channels[0].loaded && 
-        that.image.volume.channels[1].loaded && 
-        that.image.volume.channels[2].loaded && 
-        that.image.volume.channels[3].loaded &&
+      if (volume.channels[0].loaded && 
+        volume.channels[1].loaded && 
+        volume.channels[2].loaded && 
+        volume.channels[3].loaded &&
         !that.volumeTexture) {
 
           // ARTIFICIALLY ENABLE ONLY THE FIRST 3 CHANNELS
-        for (let i = 0; i < that.image.volume.num_channels; ++i) {
-          that.image.setVolumeChannelEnabled(i, (i<3));
-        }
+        // for (let i = 0; i < that.image.volume.num_channels; ++i) {
+        //   that.image.setVolumeChannelEnabled(i, (i<3));
+        // }
         that.pathTracingUniforms.g_nChannels.value = 3;
         that.viewChannels = [0, 1, 2, -1];
       
 
         // assemble 4 channels.
-        var sx = that.image.volume.x, sy = that.image.volume.y, sz = that.image.volume.z;
+        var sx = volume.x, sy = volume.y, sz = volume.z;
         var data = new Uint8Array(sx*sy*sz * 4);
         data.fill(0);
         // array of 4 channels to look at. -1 means no channel active.
@@ -211,20 +212,20 @@ export class AICSview3d_PT {
             continue;
           }
   
-          if (that.image.volume.imageInfo.preset) {
-            let p = that.image.volume.imageInfo.preset;
-            that.image.volume.channels[ch].lutGenerator_windowLevel(p[i][0], p[i][1]);
+          if (volume.imageInfo.preset) {
+            let p = volume.imageInfo.preset;
+            volume.channels[ch].lutGenerator_windowLevel(p[i][0], p[i][1]);
           }
-          const lut0 = new THREE.DataTexture(that.image.volume.channels[ch].lut, 256, 1, THREE.RedFormat, THREE.UnsignedByteType);
+          const lut0 = new THREE.DataTexture(volume.channels[ch].lut, 256, 1, THREE.RedFormat, THREE.UnsignedByteType);
           lut0.needsUpdate = true;
           that.pathTracingUniforms.g_lutTexture.value[i] = lut0;
   
-          that.pathTracingUniforms.g_intensityMax.value.setComponent(i, that.image.volume.channels[ch].histogram.dataMax / 255.0);
+          that.pathTracingUniforms.g_intensityMax.value.setComponent(i, volume.channels[ch].histogram.dataMax / 255.0);
 
           for (var iz = 0; iz < sz; ++iz) {
             for (var iy = 0; iy < sy; ++iy) {
               for (var ix = 0; ix < sx; ++ix) {
-                data[i + ix*4 + iy*4*sx + iz*4*sx*sy] = that.image.volume.getChannel(ch).getIntensity(ix,iy,iz);
+                data[i + ix*4 + iy*4*sx + iz*4*sx*sy] = volume.getChannel(ch).getIntensity(ix,iy,iz);
               }
             }
           }
@@ -238,7 +239,7 @@ export class AICSview3d_PT {
 
         }
         // defaults to rgba and unsignedbytetype so dont need to supply format this time.
-        that.volumeTexture = new THREE.DataTexture3D(data, that.image.volume.x, that.image.volume.y, that.image.volume.z);
+        that.volumeTexture = new THREE.DataTexture3D(data, volume.x, volume.y, volume.z);
         that.volumeTexture.minFilter = that.volumeTexture.magFilter = THREE.LinearFilter;
         that.volumeTexture.needsUpdate = true;
         that.pathTracingUniforms.volumeTexture.value = that.volumeTexture;
@@ -246,7 +247,7 @@ export class AICSview3d_PT {
         console.log("GOT VOLUME TEXTURE");
 
     // bounds will go from 0 to PhysicalSize
-    const PhysicalSize = that.image.volume.normalizedPhysicalSize;
+    const PhysicalSize = volume.normalizedPhysicalSize;
     let bbctr = new THREE.Vector3(PhysicalSize.x*0.5, PhysicalSize.y*0.5, PhysicalSize.z*0.5);
 
     if (that.controlChangeHandler)  {
@@ -356,7 +357,7 @@ export class AICSview3d_PT {
   updateActiveChannels(channeluidata) {
     var ch = [-1, -1, -1, -1];
     var activeChannel = 0;
-    var NC = this.image.num_channels;
+    var NC = this.image.volume.num_channels;
     const maxch = 3;
     for (let i = 0; i < NC && activeChannel < maxch; ++i) {
       if ((this.image.fusion[i].rgbColor !== 0)) {
@@ -371,13 +372,13 @@ export class AICSview3d_PT {
     this.updateVolumeData4();
     this.sampleCounter = 0.0;
     this.updateLuts();
-    this.updateMaterial();
+    this.updateMaterial(channeluidata);
 
     console.log(this.pathTracingUniforms);
   }
 
   updateVolumeData4() {
-    var sx = this.image.x, sy = this.image.y, sz = this.image.z;
+    var sx = this.image.volume.x, sy = this.image.volume.y, sz = this.image.volume.z;
 
     var data = new Uint8Array(sx*sy*sz * 4);
     data.fill(0);
@@ -406,10 +407,10 @@ export class AICSview3d_PT {
 
   updateLuts() {
     for (let i = 0; i < this.pathTracingUniforms.g_nChannels.value; ++i) {
-      this.pathTracingUniforms.g_lutTexture.value[i].image.data.set(this.image.channelData.channels[this.viewChannels[i]].lut);
+      this.pathTracingUniforms.g_lutTexture.value[i].image.data.set(this.image.volume.channels[this.viewChannels[i]].lut);
       this.pathTracingUniforms.g_lutTexture.value[i].needsUpdate = true;  
 
-      this.pathTracingUniforms.g_intensityMax.value.setComponent(i, this.image.channelData.channels[this.viewChannels[i]].histogram.dataMax / 255.0);
+      this.pathTracingUniforms.g_intensityMax.value.setComponent(i, this.image.volume.channels[this.viewChannels[i]].histogram.dataMax / 255.0);
 
     }
 

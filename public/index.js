@@ -181,14 +181,14 @@ function showChannelUI(img) {
             window: 1.0,
             level: 0.5,
             roughness: 0.0,
-            enabled: (i < 3) ? true : false
+            enabled: true
         });
         var f = gui.addFolder("Channel " + myState.infoObj.channel_names[i]);
         myState.channelFolderNames.push("Channel " + myState.infoObj.channel_names[i]);
         f.add(myState.infoObj.channelGui[i], "enabled").onChange(function (j) {
             return function (value) {
                 view3D.image.setVolumeChannelEnabled(j, value ? true : false);
-                view3D.updateActiveChannels();
+                view3D.updateActiveChannels(myState.infoObj.channelGui);
             };
         }(i));
         f.addColor(myState.infoObj.channelGui[i], "colorD").name("Diffuse").onChange(function (j) {
@@ -209,14 +209,14 @@ function showChannelUI(img) {
         }(i));
         f.add(myState.infoObj.channelGui[i], "window").max(1.0).min(0.0).step(0.001).onChange(function (j) {
                 return function (value) {
-                    view3D.image.channelData.channels[j].lutGenerator_windowLevel(value, myState.infoObj.channelGui[j].level);
+                    view3D.image.volume.channels[j].lutGenerator_windowLevel(value, myState.infoObj.channelGui[j].level);
                     view3D.updateLuts();
                 }
             }(i));
 
         f.add(myState.infoObj.channelGui[i], "level").max(1.0).min(0.0).step(0.001).onChange(function (j) {
                 return function (value) {
-                    view3D.image.channelData.channels[j].lutGenerator_windowLevel(myState.infoObj.channelGui[j].window, value);
+                    view3D.image.volume.channels[j].lutGenerator_windowLevel(myState.infoObj.channelGui[j].window, value);
                     view3D.updateLuts();
                 }
             }(i));
