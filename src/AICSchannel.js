@@ -167,6 +167,36 @@ AICSchannel.prototype.setLut = function(lut, controlPoints) {
   }
 };
 
+AICSchannel.prototype.lutGenerator_windowLevel = function(wnd, lvl) {
+  if (!this.loaded) {
+    return;
+  }
+
+  // return a LUT with new values(?)
+  // data type of lut values is out_phys_range (uint8)
+  // length of lut is number of histogram bins (represents the input data range)
+  var lut = new Uint8Array(256);
+
+  // simple linear mapping for actual range
+  var range = wnd * 256;
+  var b = lvl*256 - range*0.5;
+  var e = lvl*256 + range*0.5;
+  if (range < 1) {
+    range = 256;
+  }
+  for (var x = 0; x < lut.length; ++x) {
+    lut[x] = Math.clamp((x - b) * 256 / range, 0, 255);
+  }
+
+  this.lut = lut;
+  this.lutControlPoints = [
+    {x:0, opacity:0, color:"gray"},
+    {x:b, opacity:0, color:"gray"},
+    {x:e, opacity:1, color:"gray"},
+    {x:255, opacity:1, color:"gray"}
+  ];
+};
+
 AICSchannel.prototype.lutGenerator_fullRange = function() {
   if (!this.loaded) {
     return;
