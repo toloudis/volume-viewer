@@ -8,7 +8,7 @@ const DEFAULT_PERSPECTIVE_CAMERA_NEAR = 0.001;
 const DEFAULT_PERSPECTIVE_CAMERA_FAR = 20.0;
 
 export class AICSthreeJsPanel {
-  constructor(parentElement) {
+  constructor(parentElement, useWebGL2) {
     this.containerdiv = document.createElement('div');
     this.containerdiv.setAttribute('id', 'volumeViewerContainerDiv');
     this.containerdiv.style.position = 'relative';
@@ -30,15 +30,34 @@ export class AICSthreeJsPanel {
     this.mousedown = false;
     this.needs_render = true;
 
-    this.renderer = new THREE.WebGLRenderer({
-      canvas: this.canvas,
-      preserveDrawingBuffer : true,
-      alpha: true,
-      premultipliedAlpha: false,
-      sortObjects: true
-    });
-    this.renderer.setPixelRatio( window.devicePixelRatio );
-    this.renderer.state.setBlending(THREE.NormalBlending);
+    this.hasWebGL2 = false;
+    if (useWebGL2) {
+      let context = this.canvas.getContext( 'webgl2' );
+      if (context) {
+        this.hasWebGL2 = true;
+        this.renderer = new THREE.WebGLRenderer({
+          canvas: this.canvas,
+          context: context
+        });
+        this.renderer.autoClear = false;
+        // set pixel ratio to 0.25 or 0.5 to render at lower res.
+        this.renderer.setPixelRatio( window.devicePixelRatio );
+        this.renderer.state.setBlending(THREE.NormalBlending);
+        //required by WebGL 2.0 for rendering to FLOAT textures
+        this.renderer.context.getExtension('EXT_color_buffer_float');  
+      }
+    }
+    if (!this.hasWebGL2) {
+      this.renderer = new THREE.WebGLRenderer({
+        canvas: this.canvas,
+        preserveDrawingBuffer : true,
+        alpha: true,
+        premultipliedAlpha: false,
+        sortObjects: true
+      });
+      this.renderer.setPixelRatio( window.devicePixelRatio );
+      this.renderer.state.setBlending(THREE.NormalBlending);
+    }
 
     this.clock = new THREE.Clock();
 
@@ -290,6 +309,9 @@ export class AICSthreeJsPanel {
   }
 
   resize(comp, w, h, ow, oh, eOpts) {
+
+    this.w = w;
+    this.h = h;
     this.containerdiv.style.width = '' + w + 'px';
     this.containerdiv.style.height = '' + h + 'px';
 
