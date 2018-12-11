@@ -495,7 +495,7 @@ export class AICSview3d_PT {
     this.pathTracingUniforms.gClippedAaBbMin.value = new THREE.Vector3(xmin*PhysicalSize.x, ymin*PhysicalSize.y, zmin*PhysicalSize.z);
     this.pathTracingUniforms.gClippedAaBbMax.value = new THREE.Vector3(xmax*PhysicalSize.x, ymax*PhysicalSize.y, zmax*PhysicalSize.z);
     this.sampleCounter = 0.0;
-}
+  }
 
   buildScene() {
     this.scene = new THREE.Scene();
@@ -507,7 +507,7 @@ export class AICSview3d_PT {
     // quadCamera is simply the camera to help render the full screen quad (2 triangles),
     // hence the name.  It is an Orthographic camera that sits facing the view plane, which serves as
     // the window into our 3d world. This camera will not move or rotate for the duration of the app.
-    this.quadCamera = new THREE.OrthographicCamera( -1, 1, 1, -1, 0, 1 );
+    this.quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
     this.screenTextureScene.add(this.quadCamera);
     this.scene.add(this.quadCamera);
 
@@ -518,201 +518,201 @@ export class AICSview3d_PT {
 
     const pixelRatio = 1.0;
 
-    this.pathTracingRenderTarget = new THREE.WebGLRenderTarget( (this.canvas3d.w * pixelRatio), (this.canvas3d.h * pixelRatio), {
+    this.pathTracingRenderTarget = new THREE.WebGLRenderTarget((this.canvas3d.w * pixelRatio), (this.canvas3d.h * pixelRatio), {
       minFilter: THREE.NearestFilter,
       magFilter: THREE.NearestFilter,
       format: THREE.RGBAFormat,
       type: THREE.FloatType,
       depthBuffer: false,
       stencilBuffer: false
-    } );
+    });
     this.pathTracingRenderTarget.texture.generateMipmaps = false;
-    
-    this.screenTextureRenderTarget = new THREE.WebGLRenderTarget( (this.canvas3d.w * pixelRatio), (this.canvas3d.h * pixelRatio), {
-      minFilter: THREE.NearestFilter, 
+
+    this.screenTextureRenderTarget = new THREE.WebGLRenderTarget((this.canvas3d.w * pixelRatio), (this.canvas3d.h * pixelRatio), {
+      minFilter: THREE.NearestFilter,
       magFilter: THREE.NearestFilter,
       format: THREE.RGBAFormat,
       type: THREE.FloatType,
       depthBuffer: false,
       stencilBuffer: false
-    } );
+    });
     this.screenTextureRenderTarget.texture.generateMipmaps = false;
 
     this.screenTextureShader = {
 
       uniforms: THREE.UniformsUtils.merge([
-  
-          {
-              tTexture0: {
-                  type: "t",
-                  value: null
-              }
+
+        {
+          tTexture0: {
+            type: "t",
+            value: null
           }
-  
+        }
+
       ]),
-  
+
       vertexShader: [
-          '#version 300 es',
-  
-          'precision highp float;',
-          'precision highp int;',
-  
-          'out vec2 vUv;',
-  
-          'void main()',
-          '{',
-          'vUv = uv;',
-          'gl_Position = vec4( position, 1.0 );',
-          '}'
-  
+        '#version 300 es',
+
+        'precision highp float;',
+        'precision highp int;',
+
+        'out vec2 vUv;',
+
+        'void main()',
+        '{',
+        'vUv = uv;',
+        'gl_Position = vec4( position, 1.0 );',
+        '}'
+
       ].join('\n'),
-  
+
       fragmentShader: [
-          '#version 300 es',
-  
-          'precision highp float;',
-          'precision highp int;',
-          'precision highp sampler2D;',
-  
-          'uniform sampler2D tTexture0;',
-          'in vec2 vUv;',
-          'out vec4 out_FragColor;',
-  
-          'void main()',
-          '{',
-          'out_FragColor = texture(tTexture0, vUv);',
-          '}'
-  
+        '#version 300 es',
+
+        'precision highp float;',
+        'precision highp int;',
+        'precision highp sampler2D;',
+
+        'uniform sampler2D tTexture0;',
+        'in vec2 vUv;',
+        'out vec4 out_FragColor;',
+
+        'void main()',
+        '{',
+        'out_FragColor = texture(tTexture0, vUv);',
+        '}'
+
       ].join('\n')
-  
-  };
-  
-  this.screenOutputShader = {
-  
+
+    };
+
+    this.screenOutputShader = {
+
       uniforms: THREE.UniformsUtils.merge([
-  
-          {
-              uOneOverSampleCounter: {
-                  type: "f",
-                  value: 0.0
-              },
-              tTexture0: {
-                  type: "t",
-                  value: null
-              }
+
+        {
+          uOneOverSampleCounter: {
+            type: "f",
+            value: 0.0
+          },
+          tTexture0: {
+            type: "t",
+            value: null
           }
-  
+        }
+
       ]),
-  
+
       vertexShader: [
-          '#version 300 es',
-  
-          'precision highp float;',
-          'precision highp int;',
-  
-          'out vec2 vUv;',
-  
-          'void main()',
-          '{',
-          'vUv = uv;',
-          'gl_Position = vec4( position, 1.0 );',
-          '}'
-  
+        '#version 300 es',
+
+        'precision highp float;',
+        'precision highp int;',
+
+        'out vec2 vUv;',
+
+        'void main()',
+        '{',
+        'vUv = uv;',
+        'gl_Position = vec4( position, 1.0 );',
+        '}'
+
       ].join('\n'),
-  
+
       fragmentShader: [
-          '#version 300 es',
-  
-          'precision highp float;',
-          'precision highp int;',
-          'precision highp sampler2D;',
-  
-          'uniform float uOneOverSampleCounter;',
-          'uniform sampler2D tTexture0;',
-          'in vec2 vUv;',
-          'out vec4 out_FragColor;',
+        '#version 300 es',
 
-          'vec3 XYZtoRGB(vec3 xyz) {',
-            'return vec3(',
-              '3.240479f*xyz[0] - 1.537150f*xyz[1] - 0.498535f*xyz[2],',
-              '-0.969256f*xyz[0] + 1.875991f*xyz[1] + 0.041556f*xyz[2],',
-              '0.055648f*xyz[0] - 0.204043f*xyz[1] + 1.057311f*xyz[2]',
-            ');',
-          '}',
-          
-          'void main()',
-          '{',
-          'vec4 pixelColor = texture(tTexture0, vUv);',// * uOneOverSampleCounter;',
-          // TODO TONE MAP!!!!!!
-          'pixelColor.rgb = XYZtoRGB(pixelColor.rgb);',
+        'precision highp float;',
+        'precision highp int;',
+        'precision highp sampler2D;',
 
-          'pixelColor.rgb = pow(pixelColor.rgb, vec3(1.0/2.2));',
-          //'pixelColor.rgb = 1.0-exp(pixelColor.rgb*gInvExposure);',
-          'pixelColor = clamp(pixelColor, 0.0, 1.0);',
+        'uniform float uOneOverSampleCounter;',
+        'uniform sampler2D tTexture0;',
+        'in vec2 vUv;',
+        'out vec4 out_FragColor;',
 
-          'out_FragColor = pixelColor;',// sqrt(pixelColor);',
-          //'out_FragColor = pow(pixelColor, vec4(1.0/2.2));',
+        'vec3 XYZtoRGB(vec3 xyz) {',
+        'return vec3(',
+        '3.240479f*xyz[0] - 1.537150f*xyz[1] - 0.498535f*xyz[2],',
+        '-0.969256f*xyz[0] + 1.875991f*xyz[1] + 0.041556f*xyz[2],',
+        '0.055648f*xyz[0] - 0.204043f*xyz[1] + 1.057311f*xyz[2]',
+        ');',
+        '}',
 
-          
-          '}'
-  
+        'void main()',
+        '{',
+        'vec4 pixelColor = texture(tTexture0, vUv);', // * uOneOverSampleCounter;',
+        // TODO TONE MAP!!!!!!
+        'pixelColor.rgb = XYZtoRGB(pixelColor.rgb);',
+
+        'pixelColor.rgb = pow(pixelColor.rgb, vec3(1.0/2.2));',
+        //'pixelColor.rgb = 1.0-exp(pixelColor.rgb*gInvExposure);',
+        'pixelColor = clamp(pixelColor, 0.0, 1.0);',
+
+        'out_FragColor = pixelColor;', // sqrt(pixelColor);',
+        //'out_FragColor = pow(pixelColor, vec4(1.0/2.2));',
+
+
+        '}'
+
       ].join('\n')
-  
-  };
 
-    this.pathTracingGeometry = new THREE.PlaneBufferGeometry( 2, 2 );
+    };
+
+    this.pathTracingGeometry = new THREE.PlaneBufferGeometry(2, 2);
 
     this.pathTracingUniforms = pathTracingUniforms;
     // initialize texture.
     this.pathTracingUniforms.tPreviousTexture.value = this.screenTextureRenderTarget.texture;
 
-    this.pathTracingMaterial = new THREE.ShaderMaterial( {
+    this.pathTracingMaterial = new THREE.ShaderMaterial({
       uniforms: this.pathTracingUniforms,
       //defines: pathTracingDefines,
       vertexShader: pathTracingVertexShaderSrc,
       fragmentShader: pathTracingFragmentShaderSrc,
       depthTest: false,
       depthWrite: false
-    } );
-    this.pathTracingMesh = new THREE.Mesh( this.pathTracingGeometry, this.pathTracingMaterial );
-    this.pathTracingScene.add( this.pathTracingMesh );
+    });
+    this.pathTracingMesh = new THREE.Mesh(this.pathTracingGeometry, this.pathTracingMaterial);
+    this.pathTracingScene.add(this.pathTracingMesh);
 
     // the following keeps the large scene ShaderMaterial quad right in front 
     //   of the camera at all times. This is necessary because without it, the scene 
     //   quad will fall out of view and get clipped when the camera rotates past 180 degrees.
-    this.canvas3d.perspectiveCamera.add( this.pathTracingMesh );
+    this.canvas3d.perspectiveCamera.add(this.pathTracingMesh);
 
-    this.screenTextureGeometry = new THREE.PlaneBufferGeometry( 2, 2 );
+    this.screenTextureGeometry = new THREE.PlaneBufferGeometry(2, 2);
 
-    this.screenTextureMaterial = new THREE.ShaderMaterial( {
+    this.screenTextureMaterial = new THREE.ShaderMaterial({
       uniforms: this.screenTextureShader.uniforms,
       vertexShader: this.screenTextureShader.vertexShader,
       fragmentShader: this.screenTextureShader.fragmentShader,
       depthWrite: false,
       depthTest: false
-    } );
-    
+    });
+
     this.screenTextureMaterial.uniforms.tTexture0.value = this.pathTracingRenderTarget.texture;
-    
+
     this.screenTextureMesh = new THREE.Mesh(this.screenTextureGeometry, this.screenTextureMaterial);
     this.screenTextureScene.add(this.screenTextureMesh);
-    
-    
-    
-    this.screenOutputGeometry = new THREE.PlaneBufferGeometry( 2, 2 );
-    
-    this.screenOutputMaterial = new THREE.ShaderMaterial( {
+
+
+
+    this.screenOutputGeometry = new THREE.PlaneBufferGeometry(2, 2);
+
+    this.screenOutputMaterial = new THREE.ShaderMaterial({
       uniforms: this.screenOutputShader.uniforms,
       vertexShader: this.screenOutputShader.vertexShader,
       fragmentShader: this.screenOutputShader.fragmentShader,
       depthWrite: false,
       depthTest: false
-    } );
-    
+    });
+
     this.screenOutputMaterial.uniforms.tTexture0.value = this.pathTracingRenderTarget.texture;
-    
+
     this.screenOutputMesh = new THREE.Mesh(this.screenOutputGeometry, this.screenOutputMaterial);
-    this.scene.add(this.screenOutputMesh);    
+    this.scene.add(this.screenOutputMesh);
 
 
     //////////////////////////////////////////////////////
@@ -733,11 +733,11 @@ export class AICSview3d_PT {
     // key light
     this.spotLight = new THREE.SpotLight(lightSettings.spotlightSettings.color, lightSettings.spotlightSettings.intensity);
     this.spotLight.position.set(
-        lightSettings.spotlightSettings.position.x,
-        lightSettings.spotlightSettings.position.y,
-        lightSettings.spotlightSettings.position.z
+      lightSettings.spotlightSettings.position.x,
+      lightSettings.spotlightSettings.position.y,
+      lightSettings.spotlightSettings.position.z
     );
-    this.spotLight.target = new THREE.Object3D();  // this.substrate;
+    this.spotLight.target = new THREE.Object3D(); // this.substrate;
     this.spotLight.angle = lightSettings.spotlightSettings.angle;
 
 
@@ -746,9 +746,9 @@ export class AICSview3d_PT {
     // reflect light
     this.reflectedLight = new THREE.DirectionalLight(lightSettings.reflectedLightSettings.color);
     this.reflectedLight.position.set(
-        lightSettings.reflectedLightSettings.position.x,
-        lightSettings.reflectedLightSettings.position.y,
-        lightSettings.reflectedLightSettings.position.z
+      lightSettings.reflectedLightSettings.position.x,
+      lightSettings.reflectedLightSettings.position.y,
+      lightSettings.reflectedLightSettings.position.z
     );
     this.reflectedLight.castShadow = lightSettings.reflectedLightSettings.castShadow;
     this.reflectedLight.intensity = lightSettings.reflectedLightSettings.intensity;
@@ -757,9 +757,9 @@ export class AICSview3d_PT {
     // fill light
     this.fillLight = new THREE.DirectionalLight(lightSettings.fillLightSettings.color);
     this.fillLight.position.set(
-        lightSettings.fillLightSettings.position.x,
-        lightSettings.fillLightSettings.position.y,
-        lightSettings.fillLightSettings.position.z
+      lightSettings.fillLightSettings.position.x,
+      lightSettings.fillLightSettings.position.y,
+      lightSettings.fillLightSettings.position.z
     );
     this.fillLight.castShadow = lightSettings.fillLightSettings.castShadow;
     this.fillLight.intensity = lightSettings.fillLightSettings.intensity;
