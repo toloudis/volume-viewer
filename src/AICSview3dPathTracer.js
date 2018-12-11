@@ -98,9 +98,6 @@ export class AICSview3d_PT {
     this.pathTracingUniforms.gCamera.value.m_U.crossVectors(this.pathTracingUniforms.gCamera.value.m_N, cam.up).normalize();
     this.pathTracingUniforms.gCamera.value.m_V.crossVectors(this.pathTracingUniforms.gCamera.value.m_U, this.pathTracingUniforms.gCamera.value.m_N).normalize();
 
-    this.pathTracingUniforms.gCamera.value.m_ApertureSize = 0;
-    this.pathTracingUniforms.gCamera.value.m_FocalDistance = 0;
-
     const Scale = Math.tan(0.5 * (cam.fov * 3.14159265/180.0));
     const aspect = this.pathTracingUniforms.uResolution.value.x/this.pathTracingUniforms.uResolution.value.y;
     this.pathTracingUniforms.gCamera.value.m_Screen.set(
@@ -420,6 +417,15 @@ export class AICSview3d_PT {
 
   updateExposure(e) {
     this.screenOutputMaterial.uniforms.gInvExposure.value = 1.0 / (1.0 - e);
+    this.sampleCounter = 0.0;
+  }
+  
+  updateCamera(fov, focalDistance, apertureSize) {
+    this.pathTracingUniforms.gCamera.value.m_ApertureSize = apertureSize;
+    this.pathTracingUniforms.gCamera.value.m_FocalDistance = focalDistance;
+    const cam = this.canvas3d.perspectiveCamera;
+    cam.fov = fov;
+
     this.sampleCounter = 0.0;
   }
 

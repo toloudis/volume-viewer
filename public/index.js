@@ -80,10 +80,13 @@ function setupGui() {
         view3D.updateExposure(value);
     });
     cameragui.add(myState, "aperture").max(0.1).min(0.0).step(0.001).onChange(function (value) {
+        view3D.updateCamera(myState.fov, myState.focal_distance, myState.aperture);
     });
     cameragui.add(myState, "focal_distance").max(5.0).min(0.1).step(0.001).onChange(function (value) {
+        view3D.updateCamera(myState.fov, myState.focal_distance, myState.aperture);
     });
     cameragui.add(myState, "fov").max(90.0).min(0.0).step(0.001).onChange(function (value) {
+        view3D.updateCamera(myState.fov, myState.focal_distance, myState.aperture);
     });
 
     var clipping = gui.addFolder("Clipping Box");
