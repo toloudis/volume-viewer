@@ -77,6 +77,7 @@ function setupGui() {
 
     var cameragui = gui.addFolder("Camera");
     cameragui.add(myState, "exposure").max(1.0).min(0.0).step(0.001).onChange(function (value) {
+        view3D.updateExposure(value);
     });
     cameragui.add(myState, "aperture").max(0.1).min(0.0).step(0.001).onChange(function (value) {
     });

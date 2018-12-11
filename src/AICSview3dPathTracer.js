@@ -418,6 +418,11 @@ export class AICSview3d_PT {
     this.sampleCounter = 0.0;
   }
 
+  updateExposure(e) {
+    this.screenOutputMaterial.uniforms.gInvExposure.value = 1.0 / (1.0 - e);
+    this.sampleCounter = 0.0;
+  }
+
   updateLights(state) {
     this.pathTracingUniforms.gLights.value[0].m_ColorTop = new THREE.Vector3(
       state.skyTopIntensity*state.skyTopColor[0]/255.0,
@@ -596,6 +601,10 @@ export class AICSview3d_PT {
             type: "f",
             value: 0.0
           },
+          gInvExposure: {
+            type: "f",
+            value: 1.0 / (1.0 - 0.75)
+          },
           tTexture0: {
             type: "t",
             value: null
@@ -628,32 +637,31 @@ export class AICSview3d_PT {
         'precision highp sampler2D;',
 
         'uniform float uOneOverSampleCounter;',
+        'uniform float gInvExposure;',
         'uniform sampler2D tTexture0;',
         'in vec2 vUv;',
         'out vec4 out_FragColor;',
 
         'vec3 XYZtoRGB(vec3 xyz) {',
-        'return vec3(',
-        '3.240479f*xyz[0] - 1.537150f*xyz[1] - 0.498535f*xyz[2],',
-        '-0.969256f*xyz[0] + 1.875991f*xyz[1] + 0.041556f*xyz[2],',
-        '0.055648f*xyz[0] - 0.204043f*xyz[1] + 1.057311f*xyz[2]',
-        ');',
+          'return vec3(',
+            '3.240479f*xyz[0] - 1.537150f*xyz[1] - 0.498535f*xyz[2],',
+            '-0.969256f*xyz[0] + 1.875991f*xyz[1] + 0.041556f*xyz[2],',
+            '0.055648f*xyz[0] - 0.204043f*xyz[1] + 1.057311f*xyz[2]',
+          ');',
         '}',
 
         'void main()',
         '{',
-        'vec4 pixelColor = texture(tTexture0, vUv);', // * uOneOverSampleCounter;',
-        // TODO TONE MAP!!!!!!
-        'pixelColor.rgb = XYZtoRGB(pixelColor.rgb);',
+          'vec4 pixelColor = texture(tTexture0, vUv);', // * uOneOverSampleCounter;',
+          // TODO TONE MAP!!!!!!
+          'pixelColor.rgb = XYZtoRGB(pixelColor.rgb);',
 
-        'pixelColor.rgb = pow(pixelColor.rgb, vec3(1.0/2.2));',
-        //'pixelColor.rgb = 1.0-exp(pixelColor.rgb*gInvExposure);',
-        'pixelColor = clamp(pixelColor, 0.0, 1.0);',
+          //'pixelColor.rgb = pow(pixelColor.rgb, vec3(1.0/2.2));',
+          'pixelColor.rgb = 1.0-exp(-pixelColor.rgb*gInvExposure);',
+          'pixelColor = clamp(pixelColor, 0.0, 1.0);',
 
-        'out_FragColor = pixelColor;', // sqrt(pixelColor);',
-        //'out_FragColor = pow(pixelColor, vec4(1.0/2.2));',
-
-
+          'out_FragColor = pixelColor;', // sqrt(pixelColor);',
+          //'out_FragColor = pow(pixelColor, vec4(1.0/2.2));',
         '}'
 
       ].join('\n')
