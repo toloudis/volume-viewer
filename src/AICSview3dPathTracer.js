@@ -162,11 +162,15 @@ export class AICSview3d_PT {
     }
   }
 
-  onChangeControls() {
+  onStartControls() {
     this.cameraIsMoving = true;
+  }
+  onChangeControls() {
+    //this.cameraIsMoving = true;
   }
   onEndControls() {
     this.cameraIsMoving = false;
+    this.sampleCounter = 0.0;
   }
 
   /**
@@ -229,6 +233,9 @@ export class AICSview3d_PT {
           const PhysicalSize = volume.normalizedPhysicalSize;
           let bbctr = new THREE.Vector3(PhysicalSize.x * 0.5, PhysicalSize.y * 0.5, PhysicalSize.z * 0.5);
 
+          if (that.controlStartHandler) {
+            that.canvas3d.controls.removeEventListener('start', that.controlStartHandler);
+          }
           if (that.controlChangeHandler) {
             that.canvas3d.controls.removeEventListener('change', that.controlChangeHandler);
           }
@@ -242,8 +249,10 @@ export class AICSview3d_PT {
           that.canvas3d.perspectiveControls.target.set(bbctr.x, bbctr.y, bbctr.z);
           that.canvas3d.perspectiveControls.update();
 
-          that.controlChangeHandler = that.onChangeControls.bind(that);
-          that.canvas3d.controls.addEventListener('change', that.controlChangeHandler);
+          that.controlStartHandler = that.onStartControls.bind(that);
+          that.canvas3d.controls.addEventListener('start', that.controlStartHandler);
+          // that.controlChangeHandler = that.onChangeControls.bind(that);
+          // that.canvas3d.controls.addEventListener('change', that.controlChangeHandler);
           that.controlEndHandler = that.onEndControls.bind(that);
           that.canvas3d.controls.addEventListener('end', that.controlEndHandler);
 
