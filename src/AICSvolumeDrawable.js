@@ -42,6 +42,10 @@ function AICSvolumeDrawable(imageInfo) {
     };
   });
 
+  this.specular = new Array(this.volume.num_channels).fill([0,0,0]);
+  this.emissive = new Array(this.volume.num_channels).fill([0,0,0]);
+  this.roughness = new Array(this.volume.num_channels).fill(0);
+
   this.sceneRoot = new THREE.Object3D();//create an empty container
 
   this.cube = new THREE.BoxGeometry(1.0, 1.0, 1.0);
@@ -614,19 +618,37 @@ AICSvolumeDrawable.prototype.isVolumeChannelEnabled = function(channelIndex) {
 /**
  * Set the color for a channel
  * @param {number} channelIndex 
- * @param {Array.<number>} colorrgba [r,g,b]
+ * @param {Array.<number>} colorrgb [r,g,b]
  */
-AICSvolumeDrawable.prototype.updateChannelColor = function(channelIndex, colorrgba) {
+AICSvolumeDrawable.prototype.updateChannelColor = function(channelIndex, colorrgb) {
   if (!this.channel_colors[channelIndex]) {
     return;
   }
-  this.channel_colors[channelIndex] = colorrgba;
+  this.channel_colors[channelIndex] = colorrgb;
   // if volume channel is zero'ed out, then don't update it until it is switched on again.
   if (this.fusion[channelIndex].rgbColor !== 0) {
-    this.fusion[channelIndex].rgbColor = colorrgba;
+    this.fusion[channelIndex].rgbColor = colorrgb;
     this.fuse();
   }
   this.updateMeshColors();
+};
+
+/**
+ * Set the material for a channel
+ * @param {number} channelIndex 
+ * @param {Array.<number>} colorrgb [r,g,b]
+ * @param {Array.<number>} specularrgb [r,g,b]
+ * @param {Array.<number>} emissivergb [r,g,b]
+ * @param {number} roughness
+ */
+AICSvolumeDrawable.prototype.updateChannelMaterial = function(channelIndex, colorrgb, specularrgb, emissivergb, roughness) {
+  if (!this.channel_colors[channelIndex]) {
+    return;
+  }
+  this.updateChannelColor(channelIndex, colorrgb);
+  this.specular[channelIndex] = specularrgb;
+  this.emissive[channelIndex] = emissivergb;
+  this.roughness[channelIndex] = roughness;
 };
 
 /**

@@ -188,23 +188,43 @@ function showChannelUI(img) {
         f.add(myState.infoObj.channelGui[i], "enabled").onChange(function (j) {
             return function (value) {
                 view3D.image.setVolumeChannelEnabled(j, value ? true : false);
-                view3D.updateActiveChannels(myState.infoObj.channelGui);
+                view3D.updateActiveChannels();
             };
         }(i));
         f.addColor(myState.infoObj.channelGui[i], "colorD").name("Diffuse").onChange(function (j) {
             return function (value) {
-                view3D.image.updateChannelColor(j, myState.infoObj.channelGui[j].colorD);
-                view3D.updateMaterial(myState.infoObj.channelGui);
+                view3D.image.updateChannelMaterial(
+                    j,
+                    myState.infoObj.channelGui[j].colorD,
+                    myState.infoObj.channelGui[j].colorS,
+                    myState.infoObj.channelGui[j].colorE,
+                    myState.infoObj.channelGui[j].roughness
+                );
+                view3D.updateMaterial();
             };
         }(i));
         f.addColor(myState.infoObj.channelGui[i], "colorS").name("Specular").onChange(function (j) {
             return function (value) {
-                view3D.updateMaterial(myState.infoObj.channelGui);
+                view3D.image.updateChannelMaterial(
+                    j,
+                    myState.infoObj.channelGui[j].colorD,
+                    myState.infoObj.channelGui[j].colorS,
+                    myState.infoObj.channelGui[j].colorE,
+                    myState.infoObj.channelGui[j].roughness
+                );
+                view3D.updateMaterial();
             };
         }(i));
         f.addColor(myState.infoObj.channelGui[i], "colorE").name("Emissive").onChange(function (j) {
             return function (value) {
-                view3D.updateMaterial(myState.infoObj.channelGui);
+                view3D.image.updateChannelMaterial(
+                    j,
+                    myState.infoObj.channelGui[j].colorD,
+                    myState.infoObj.channelGui[j].colorS,
+                    myState.infoObj.channelGui[j].colorE,
+                    myState.infoObj.channelGui[j].roughness
+                );
+                view3D.updateMaterial();
             };
         }(i));
         f.add(myState.infoObj.channelGui[i], "window").max(1.0).min(0.0).step(0.001).onChange(function (j) {
@@ -222,7 +242,14 @@ function showChannelUI(img) {
             }(i));
         f.add(myState.infoObj.channelGui[i], "roughness").max(100.0).min(0.0).onChange(function (j) {
                 return function (value) {
-                    view3D.updateMaterial(myState.infoObj.channelGui);
+                    view3D.image.updateChannelMaterial(
+                        j,
+                        myState.infoObj.channelGui[j].colorD,
+                        myState.infoObj.channelGui[j].colorS,
+                        myState.infoObj.channelGui[j].colorE,
+                        myState.infoObj.channelGui[j].roughness
+                    );
+                    view3D.updateMaterial();
                 }
             }(i));
 

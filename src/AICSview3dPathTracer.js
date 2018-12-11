@@ -184,165 +184,130 @@ export class AICSview3d_PT {
     this.image.setResolution(this.canvas3d);
 
     var that = this;
-    this.image.onChannelDataReadyCallback = function() {
-      const volume = that.image.volume;
-      // if first 3 channels are loaded...
-      if (volume.channels[0].loaded && 
-        volume.channels[1].loaded && 
-        volume.channels[2].loaded && 
-        volume.channels[3].loaded &&
-        !that.volumeTexture) {
+    this.image.onChannelDataReadyCallback = function () {
+        const volume = that.image.volume;
+        // if all channels are loaded...
+        if (volume.loaded && !that.volumeTexture) {
+          that.image.onChannelDataReadyCallback = null;
 
-          // ARTIFICIALLY ENABLE ONLY THE FIRST 3 CHANNELS
-        // for (let i = 0; i < that.image.volume.num_channels; ++i) {
-        //   that.image.setVolumeChannelEnabled(i, (i<3));
-        // }
-        that.pathTracingUniforms.g_nChannels.value = 3;
-        that.viewChannels = [0, 1, 2, -1];
-      
-
-        // assemble 4 channels.
-        var sx = volume.x, sy = volume.y, sz = volume.z;
-        var data = new Uint8Array(sx*sy*sz * 4);
-        data.fill(0);
-        // array of 4 channels to look at. -1 means no channel active.
-        for (var i = 0; i < 4; ++i) {
-          const ch = that.viewChannels[i];
-          if (ch === -1) {
-            continue;
-          }
-  
           if (volume.imageInfo.preset) {
             let p = volume.imageInfo.preset;
-            volume.channels[ch].lutGenerator_windowLevel(p[i][0], p[i][1]);
-          }
-          const lut0 = new THREE.DataTexture(volume.channels[ch].lut, 256, 1, THREE.RedFormat, THREE.UnsignedByteType);
-          lut0.needsUpdate = true;
-          that.pathTracingUniforms.g_lutTexture.value[i] = lut0;
-  
-          that.pathTracingUniforms.g_intensityMax.value.setComponent(i, volume.channels[ch].histogram.dataMax / 255.0);
-
-          for (var iz = 0; iz < sz; ++iz) {
-            for (var iy = 0; iy < sy; ++iy) {
-              for (var ix = 0; ix < sx; ++ix) {
-                data[i + ix*4 + iy*4*sx + iz*4*sx*sy] = volume.getChannel(ch).getIntensity(ix,iy,iz);
+            for (var i = 0; i < that.image.volume.num_channels; ++i) {
+              if (p[i]) {
+                volume.channels[i].lutGenerator_windowLevel(p[i][0], p[i][1]);
               }
             }
           }
 
-          var newvals = [
-            that.pathTracingUniforms.g_Diffuse.value[0], that.pathTracingUniforms.g_Diffuse.value[1], 
-            that.pathTracingUniforms.g_Diffuse.value[2], that.pathTracingUniforms.g_Diffuse.value[3]
-          ];
-          newvals[i].fromArray(that.image.fusion[ch].rgbColor).multiplyScalar(1.0/255.0);
-          that.pathTracingUniforms.g_Diffuse.value = newvals;
+          that.pathTracingUniforms.g_nChannels.value = 4;
+          that.viewChannels = [0, 1, 2, 3];
 
-        }
-        // defaults to rgba and unsignedbytetype so dont need to supply format this time.
-        that.volumeTexture = new THREE.DataTexture3D(data, volume.x, volume.y, volume.z);
-        that.volumeTexture.minFilter = that.volumeTexture.magFilter = THREE.LinearFilter;
-        that.volumeTexture.needsUpdate = true;
-        that.pathTracingUniforms.volumeTexture.value = that.volumeTexture;
+          // create volume texture
+          var sx = volume.x,
+            sy = volume.y,
+            sz = volume.z;
+          var data = new Uint8Array(sx * sy * sz * 4);
+          data.fill(0);
+          // defaults to rgba and unsignedbytetype so dont need to supply format this time.
+          that.volumeTexture = new THREE.DataTexture3D(data, volume.x, volume.y, volume.z);
+          that.volumeTexture.minFilter = that.volumeTexture.magFilter = THREE.LinearFilter;
+          that.volumeTexture.needsUpdate = true;
+          that.pathTracingUniforms.volumeTexture.value = that.volumeTexture;
 
-        console.log("GOT VOLUME TEXTURE");
+          console.log("GOT VOLUME TEXTURE");
 
-    // bounds will go from 0 to PhysicalSize
-    const PhysicalSize = volume.normalizedPhysicalSize;
-    let bbctr = new THREE.Vector3(PhysicalSize.x*0.5, PhysicalSize.y*0.5, PhysicalSize.z*0.5);
-
-    if (that.controlChangeHandler)  {
-      that.canvas3d.controls.removeEventListener( 'change', that.controlChangeHandler);
-    }
-    if (that.controlEndHandler) {
-      that.canvas3d.controls.removeEventListener( 'end', that.controlEndHandler);
-    }
-
-      // put the camera pointing at the center of this thing.
-      that.canvas3d.perspectiveCamera.position.set(bbctr.x, bbctr.y, bbctr.z+2.75);
-      that.canvas3d.perspectiveCamera.lookAt(bbctr);
-      that.canvas3d.perspectiveControls.target.set(bbctr.x, bbctr.y, bbctr.z);
-      that.canvas3d.perspectiveControls.update();
-
-      that.controlChangeHandler = that.onChangeControls.bind(that);
-      that.canvas3d.controls.addEventListener( 'change', that.controlChangeHandler);
-      that.controlEndHandler = that.onEndControls.bind(that);
-      that.canvas3d.controls.addEventListener( 'end', that.controlEndHandler);
-  
-      that.sampleCounter = 0;
-      // glm::vec3 sn = _scene->_boundingBox.GetMinP();
-      // glm::vec3 ext = _scene->_boundingBox.GetExtent();
-      // CBoundingBox b;
-      // b.SetMinP(glm::vec3(
-      //   ext.x*_scene->_roi.GetMinP().x + sn.x,
-      //   ext.y*_scene->_roi.GetMinP().y + sn.y,
-      //   ext.z*_scene->_roi.GetMinP().z + sn.z
-      // ));
-      // b.SetMaxP(glm::vec3(
-      //   ext.x*_scene->_roi.GetMaxP().x + sn.x,
-      //   ext.y*_scene->_roi.GetMaxP().y + sn.y,
-      //   ext.z*_scene->_roi.GetMaxP().z + sn.z
-      // ));
-  
-      that.pathTracingUniforms.gClippedAaBbMin.value = new THREE.Vector3(0,0,0);
-      that.pathTracingUniforms.gClippedAaBbMax.value = new THREE.Vector3(PhysicalSize.x, PhysicalSize.y, PhysicalSize.z);
-      that.pathTracingUniforms.gInvAaBbMax.value = new THREE.Vector3(1.0/PhysicalSize.x, 1.0/PhysicalSize.y, 1.0/PhysicalSize.z);
-
-        const GradientDelta = 1.0 / Math.max(sx, Math.max(sy, sz));
-        const InvGradientDelta	= 1.0 / GradientDelta;
-              
-        that.pathTracingUniforms.gGradientDeltaX.value = new THREE.Vector3(GradientDelta, 0, 0);
-        that.pathTracingUniforms.gGradientDeltaY.value = new THREE.Vector3(0, GradientDelta, 0);
-        that.pathTracingUniforms.gGradientDeltaZ.value = new THREE.Vector3(0, 0, GradientDelta);
-        // can this be a per-x,y,z value?
-        that.pathTracingUniforms.gInvGradientDelta.value = InvGradientDelta;
-        that.pathTracingUniforms.gGradientFactor.value = 50.0;
-
-        that.pathTracingUniforms.gStepSize.value = 1.0 * GradientDelta;
-        that.pathTracingUniforms.gStepSizeShadow.value = 1.0 * GradientDelta;    
-        
-
-        for (let i = 0; i < 2; ++i) {
-          let lt = that.pathTracingUniforms.gLights.value[i];
-          lt.m_InvWidth = 1.0 / lt.m_Width;
-          lt.m_HalfWidth = 0.5 * lt.m_Width;
-          lt.m_InvHalfWidth = 1.0 / lt.m_HalfWidth;
-          lt.m_InvHeight = 1.0 / lt.m_Height;
-          lt.m_HalfHeight = 0.5 * lt.m_Height;
-          lt.m_InvHalfHeight = 1.0 / lt.m_HalfHeight;
-          lt.m_Target.copy(bbctr);
-        
-          // Determine light position
-          lt.m_P.x = lt.m_Distance * Math.cos(lt.m_Phi) * Math.sin(lt.m_Theta);
-          lt.m_P.z = lt.m_Distance * Math.cos(lt.m_Phi) * Math.cos(lt.m_Theta);
-          lt.m_P.y = lt.m_Distance * Math.sin(lt.m_Phi);
-        
-          lt.m_P.add(lt.m_Target);
-        
-          // Determine area
-          if (lt.m_T === 0)
-          {
-            lt.m_Area = lt.m_Width * lt.m_Height;
-            lt.m_AreaPdf = 1.0 / lt.m_Area;
-          }
-        
-          if (lt.m_T === 1)
-          {
-            lt.m_P.copy(bbctr);
-            // shift by nonzero amount
-            lt.m_Target.addVectors(lt.m_P, new THREE.Vector3(0.0, 0.0, 1.0));
-            lt.m_SkyRadius = 1000.0 * bbctr.length()*2.0;
-            lt.m_Area = 4.0 * Math.PI * Math.pow(lt.m_SkyRadius, 2.0);
-            lt.m_AreaPdf = 1.0 / lt.m_Area;
+          // create Lut textures
+          for (var i = 0; i < 4; ++i) {
+            // empty array
+            var lutData = new Uint8Array(256).fill(1);
+            const lut0 = new THREE.DataTexture(lutData, 256, 1, THREE.RedFormat, THREE.UnsignedByteType);
+            lut0.needsUpdate = true;
+            that.pathTracingUniforms.g_lutTexture.value[i] = lut0;
           }
 
-          // Compute orthogonal basis frame
-          lt.m_N.subVectors(lt.m_Target, lt.m_P).normalize();
-          lt.m_U.crossVectors(lt.m_N, new THREE.Vector3(0.0, 1.0, 0.0)).normalize();
-          lt.m_V.crossVectors(lt.m_N, lt.m_U).normalize();
-        }
-            
+          // bounds will go from 0 to PhysicalSize
+          const PhysicalSize = volume.normalizedPhysicalSize;
+          let bbctr = new THREE.Vector3(PhysicalSize.x * 0.5, PhysicalSize.y * 0.5, PhysicalSize.z * 0.5);
 
-      }
+          if (that.controlChangeHandler) {
+            that.canvas3d.controls.removeEventListener('change', that.controlChangeHandler);
+          }
+          if (that.controlEndHandler) {
+            that.canvas3d.controls.removeEventListener('end', that.controlEndHandler);
+          }
+
+          // put the camera pointing at the center of this thing.
+          that.canvas3d.perspectiveCamera.position.set(bbctr.x, bbctr.y, bbctr.z + 2.75);
+          that.canvas3d.perspectiveCamera.lookAt(bbctr);
+          that.canvas3d.perspectiveControls.target.set(bbctr.x, bbctr.y, bbctr.z);
+          that.canvas3d.perspectiveControls.update();
+
+          that.controlChangeHandler = that.onChangeControls.bind(that);
+          that.canvas3d.controls.addEventListener('change', that.controlChangeHandler);
+          that.controlEndHandler = that.onEndControls.bind(that);
+          that.canvas3d.controls.addEventListener('end', that.controlEndHandler);
+
+          that.sampleCounter = 0;
+
+          that.pathTracingUniforms.gClippedAaBbMin.value = new THREE.Vector3(0, 0, 0);
+          that.pathTracingUniforms.gClippedAaBbMax.value = new THREE.Vector3(PhysicalSize.x, PhysicalSize.y, PhysicalSize.z);
+          that.pathTracingUniforms.gInvAaBbMax.value = new THREE.Vector3(1.0 / PhysicalSize.x, 1.0 / PhysicalSize.y, 1.0 / PhysicalSize.z);
+
+          const GradientDelta = 1.0 / Math.max(sx, Math.max(sy, sz));
+          const InvGradientDelta = 1.0 / GradientDelta;
+
+          that.pathTracingUniforms.gGradientDeltaX.value = new THREE.Vector3(GradientDelta, 0, 0);
+          that.pathTracingUniforms.gGradientDeltaY.value = new THREE.Vector3(0, GradientDelta, 0);
+          that.pathTracingUniforms.gGradientDeltaZ.value = new THREE.Vector3(0, 0, GradientDelta);
+          // can this be a per-x,y,z value?
+          that.pathTracingUniforms.gInvGradientDelta.value = InvGradientDelta;
+          that.pathTracingUniforms.gGradientFactor.value = 50.0;
+
+          that.pathTracingUniforms.gStepSize.value = 1.0 * GradientDelta;
+          that.pathTracingUniforms.gStepSizeShadow.value = 1.0 * GradientDelta;
+
+
+          for (let i = 0; i < 2; ++i) {
+            let lt = that.pathTracingUniforms.gLights.value[i];
+            lt.m_InvWidth = 1.0 / lt.m_Width;
+            lt.m_HalfWidth = 0.5 * lt.m_Width;
+            lt.m_InvHalfWidth = 1.0 / lt.m_HalfWidth;
+            lt.m_InvHeight = 1.0 / lt.m_Height;
+            lt.m_HalfHeight = 0.5 * lt.m_Height;
+            lt.m_InvHalfHeight = 1.0 / lt.m_HalfHeight;
+            lt.m_Target.copy(bbctr);
+
+            // Determine light position
+            lt.m_P.x = lt.m_Distance * Math.cos(lt.m_Phi) * Math.sin(lt.m_Theta);
+            lt.m_P.z = lt.m_Distance * Math.cos(lt.m_Phi) * Math.cos(lt.m_Theta);
+            lt.m_P.y = lt.m_Distance * Math.sin(lt.m_Phi);
+
+            lt.m_P.add(lt.m_Target);
+
+            // Determine area
+            if (lt.m_T === 0) {
+              lt.m_Area = lt.m_Width * lt.m_Height;
+              lt.m_AreaPdf = 1.0 / lt.m_Area;
+            }
+
+            if (lt.m_T === 1) {
+              lt.m_P.copy(bbctr);
+              // shift by nonzero amount
+              lt.m_Target.addVectors(lt.m_P, new THREE.Vector3(0.0, 0.0, 1.0));
+              lt.m_SkyRadius = 1000.0 * bbctr.length() * 2.0;
+              lt.m_Area = 4.0 * Math.PI * Math.pow(lt.m_SkyRadius, 2.0);
+              lt.m_AreaPdf = 1.0 / lt.m_Area;
+            }
+
+            // Compute orthogonal basis frame
+            lt.m_N.subVectors(lt.m_Target, lt.m_P).normalize();
+            lt.m_U.crossVectors(lt.m_N, new THREE.Vector3(0.0, 1.0, 0.0)).normalize();
+            lt.m_V.crossVectors(lt.m_N, lt.m_U).normalize();
+          }
+
+          that.updateActiveChannels();
+
+        }
     };
 
 
@@ -354,11 +319,11 @@ export class AICSview3d_PT {
 
   };
 
-  updateActiveChannels(channeluidata) {
+  updateActiveChannels() {
     var ch = [-1, -1, -1, -1];
     var activeChannel = 0;
     var NC = this.image.volume.num_channels;
-    const maxch = 3;
+    const maxch = 4;
     for (let i = 0; i < NC && activeChannel < maxch; ++i) {
       if ((this.image.fusion[i].rgbColor !== 0)) {
         ch[activeChannel] = i;
@@ -372,7 +337,7 @@ export class AICSview3d_PT {
     this.updateVolumeData4();
     this.sampleCounter = 0.0;
     this.updateLuts();
-    this.updateMaterial(channeluidata);
+    this.updateMaterial();
 
     console.log(this.pathTracingUniforms);
   }
@@ -417,14 +382,14 @@ export class AICSview3d_PT {
     this.sampleCounter = 0.0;
   }
 
-  updateMaterial(channelguidata) {
+  updateMaterial() {
     for (let c = 0; c < this.viewChannels.length; ++c) {
        let i = this.viewChannels[c];
        if (i > -1) {
         this.pathTracingUniforms.g_Diffuse.value[c] = new THREE.Vector3().fromArray(this.image.fusion[i].rgbColor).multiplyScalar(1.0/255.0);
-        this.pathTracingUniforms.g_Specular.value[c] = new THREE.Vector3().fromArray(channelguidata[i].colorS).multiplyScalar(1.0/255.0);
-        this.pathTracingUniforms.g_Emissive.value[c] = new THREE.Vector3().fromArray(channelguidata[i].colorE).multiplyScalar(1.0/255.0);
-        this.pathTracingUniforms.g_Roughness.value[c] = channelguidata[i].roughness;   
+        this.pathTracingUniforms.g_Specular.value[c] = new THREE.Vector3().fromArray(this.image.specular[i]).multiplyScalar(1.0/255.0);
+        this.pathTracingUniforms.g_Emissive.value[c] = new THREE.Vector3().fromArray(this.image.emissive[i]).multiplyScalar(1.0/255.0);
+        this.pathTracingUniforms.g_Roughness.value[c] = this.image.roughness[i];
       }
     }
     this.sampleCounter = 0.0;
