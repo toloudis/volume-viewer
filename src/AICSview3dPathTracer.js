@@ -782,7 +782,7 @@ export class AICSview3d_PT {
 
   /**
    * Enable or disable 3d axis display at lower left.
-   * @param {boolean} autorotate 
+   * @param {boolean} showAxis 
    */
   setShowAxis(showAxis) {
     this.canvas3d.showAxis = showAxis;
@@ -794,8 +794,8 @@ export class AICSview3d_PT {
    */
   setAutoRotate(autorotate) {
     this.canvas3d.setAutoRotate(autorotate);
-    this.sampleCounter = 1;
-    this.cameraIsMoving = false;
+    this.sampleCounter = 0;
+    this.cameraIsMoving = autorotate;
   };
 
   /**
