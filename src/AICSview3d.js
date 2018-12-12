@@ -14,9 +14,6 @@ export class AICSview3d {
     this.scene = null;
     this.backgroundColor = 0x000000;
 
-    // a light source...
-    //this.light = null;
-
     this.loaded = false;
     let that = this;
     this.parentEl = parentElement;
@@ -186,28 +183,33 @@ export class AICSview3d {
     }
   };
 
-
   updateDensity(density) {
     this.image.setDensity(density/100.0);
   };
+
   updateShadingMethod(isbrdf) {
 
   };
+
   updateShowLights(showlights) {
 
   };
+
   updateActiveChannels() {
     this.image.fuse();
   };
+
   updateLuts() {
     this.image.fuse();
   };
+
   updateMaterial() {
     this.image.fuse();
   };
-  updateExposure(e) {
-  }
   
+  updateExposure(e) {
+  };
+
   updateCamera(fov, focalDistance, apertureSize) {
     const cam = this.canvas3d.perspectiveCamera;
     cam.fov = fov;
