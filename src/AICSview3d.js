@@ -205,5 +205,14 @@ export class AICSview3d {
   updateMaterial() {
     this.image.fuse();
   };
+  updateExposure(e) {
+  }
+  
+  updateCamera(fov, focalDistance, apertureSize) {
+    const cam = this.canvas3d.perspectiveCamera;
+    cam.fov = fov;
+    this.canvas3d.fov = fov;
+    cam.updateProjectionMatrix();
+  }
 
 }
