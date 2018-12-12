@@ -104,6 +104,9 @@ AICSchannelData.prototype.setupWorkers = function() {
 // batch is array containing which channels were just loaded
 // channels is the array containing the channel data.
 AICSchannelData.prototype.onChannelLoaded = function(batch, channels) {
+  if (this.useSingleThread || !window.Worker) {
+    return;
+  }
   var npx = this.height*this.width;
   // pass channel data to workers
   for (var i = 0; i < this.workersCount; ++i) {
