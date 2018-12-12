@@ -251,11 +251,11 @@ AICSchannelData.prototype.singleThreadedFuse = function(combination, channels) {
 };
 
 // currently only one channel can be selected to participate as a mask
-AICSchannelData.prototype.setChannelAsMask = function(idx) {
-  if (!this.channels[idx] || !this.channels[idx].loaded) {
+AICSchannelData.prototype.setChannelAsMask = function(idx, channel) {
+  if (!channel || !channel.loaded) {
     return false;
   }
-  var datacopy = this.channels[idx].imgData.data.buffer.slice(0);
+  var datacopy = channel.imgData.data.buffer.slice(0);
   var maskData = {data:new Uint8Array(datacopy), width:this.width, height:this.height};
   this.maskTexture.image = maskData;
   this.maskTexture.needsUpdate = true;

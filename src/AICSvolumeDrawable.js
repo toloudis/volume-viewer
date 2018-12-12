@@ -719,7 +719,10 @@ AICSvolumeDrawable.prototype.appendEmptyChannel = function(name, color) {
  * @param {number} channelIndex 
  */
 AICSvolumeDrawable.prototype.setChannelAsMask = function(channelIndex) {
-  return this.channelData.setChannelAsMask(channelIndex);
+  if (!this.volume.channels[channelIndex] || !this.volume.channels[channelIndex].loaded) {
+    return false;
+  }
+  return this.channelData.setChannelAsMask(channelIndex, this.volume.channels[channelIndex]);
 };
 
 /**

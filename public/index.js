@@ -282,6 +282,10 @@ function loadImageData(jsondata, volumedata) {
     else {
         AICSvolumeLoader.loadVolumeAtlasData(jsondata.images, (url, channelIndex, atlasdata, atlaswidth, atlasheight) => {
             aimg.setChannelDataFromAtlas(channelIndex, atlasdata, atlaswidth, atlasheight);
+            // if (aimg.volume.loaded) {
+            //     aimg.setChannelAsMask(5);
+            //     aimg.setUniform('maskAlpha', 0.0);
+            // }
         });
     }
 
