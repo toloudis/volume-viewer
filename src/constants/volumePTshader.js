@@ -1114,8 +1114,8 @@ void main()
   vec4 pixelColor = CalculateRadiance( seed );
     
   vec4 previousColor = texture(tPreviousTexture, vUv);
-   if (uSampleCounter < 2.0) {
-     previousColor = vec4(0,0,0,1);
+   if (uSampleCounter < 1.0) {
+     previousColor = vec4(0,0,0,0);
    }
 
   // TODO CalculateRadiance returns XYZ space. Convert to RGB after linear averaging. (Tonemapping step) ????
@@ -1130,9 +1130,6 @@ export let pathTracingUniforms = {
       
     tPreviousTexture: { type: "t", value: null },//this.screenTextureRenderTarget.texture },
     
-    uCameraIsMoving: { type: "b1", value: false },
-    uCameraJustStartedMoving: { type: "b1", value: false },
-    uTime: { type: "f", value: 0.0 },
     uSampleCounter: { type: "f", value: 0.0 },
     uFrameCounter: { type: "f", value: 1.0 },
     

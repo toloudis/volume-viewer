@@ -17,17 +17,12 @@ export class AICSview3d_PT {
     this.scene = null;
     this.backgroundColor = 0x000000;
 
-    // a light source...
-    //this.light = null;
-
     this.loaded = false;
     let that = this;
     this.parentEl = parentElement;
     window.addEventListener('resize', () => that.resize(null, that.parentEl.offsetWidth, that.parentEl.offsetHeight));
 
     this.cameraIsMoving = false;
-    this.cameraJustStartedMoving = false;
-    this.cameraRecentlyMoving = false;
     this.sampleCounter = 1;
     this.frameCounter = 1;
 
@@ -49,48 +44,21 @@ export class AICSview3d_PT {
       return;
     }
 
-    // if (this.sampleCounter === 1) {
-    //   this.canvas3d.renderer.setRenderTarget(this.screenTextureRenderTarget);
-    //   this.canvas3d.renderer.clear(true);
-    //   this.canvas3d.renderer.setRenderTarget(this.pathTracingRenderTarget);
-    //   this.canvas3d.renderer.clear(true);
-    // }
-
-
     if ( this.cameraIsMoving ) {
-					
-      this.sampleCounter = 1.0;
+      this.sampleCounter = 0.0;
       this.frameCounter  += 1.0;
-      
-      if ( !this.cameraRecentlyMoving ) {
-        this.cameraJustStartedMoving = true;
-        this.cameraRecentlyMoving = true;
-      }
     }
-    
-    if ( !this.cameraIsMoving ) {
-
+    else {
       this.sampleCounter += 1.0;
       this.frameCounter  += 1.0;
-      if (this.cameraRecentlyMoving) {
-        this.frameCounter = 1.0;
-      }
-      
-      this.cameraRecentlyMoving = false;
-      
     }
 
-
-
-    this.pathTracingUniforms.uCameraIsMoving.value = this.cameraIsMoving;
-    this.pathTracingUniforms.uCameraJustStartedMoving.value = this.cameraJustStartedMoving;
     this.pathTracingUniforms.uSampleCounter.value = this.sampleCounter;
     this.pathTracingUniforms.uFrameCounter.value = this.frameCounter;
-    //this.pathTracingUniforms.uRandomVector.value = randomVector.set( Math.random(), Math.random(), Math.random() );
+
     // CAMERA
     // force the perspective camera to update its world matrix.
     this.canvas3d.perspectiveCamera.updateMatrixWorld(true);			
-    //this.pathTracingUniforms.uCameraMatrix.value.copy( this.canvas3d.perspectiveCamera.matrixWorld );
 
     const cam = this.canvas3d.perspectiveCamera;
     this.pathTracingUniforms.gCamera.value.m_From.copy(cam.position);
@@ -113,16 +81,16 @@ export class AICSview3d_PT {
       (scr.y - scr.x) / this.pathTracingUniforms.uResolution.value.x,
       (scr.w - scr.z) / this.pathTracingUniforms.uResolution.value.y
     );
+
     this.pathTracingUniforms.volumeTexture.value = this.volumeTexture;
 
-
-    this.screenOutputMaterial.uniforms.uOneOverSampleCounter.value = 1.0 / this.sampleCounter;
-    
     // RENDERING in 3 steps
     
     // STEP 1
     // Perform PathTracing and Render(save) into pathTracingRenderTarget
-    // Read previous screenTextureRenderTarget to use as a new starting point to blend with
+    // This is currently rendered as a fullscreen quad with no camera transform in the vertex shader!
+    // It is also composited with screenTextureRenderTarget's texture.
+    // (Read previous screenTextureRenderTarget to use as a new starting point to blend with)
     this.canvas3d.renderer.render( this.pathTracingScene, this.canvas3d.perspectiveCamera, this.pathTracingRenderTarget );	
     
     // STEP 2
@@ -204,11 +172,10 @@ export class AICSview3d_PT {
           that.viewChannels = [0, 1, 2, 3];
 
           // create volume texture
-          var sx = volume.x,
+          const sx = volume.x,
             sy = volume.y,
             sz = volume.z;
-          var data = new Uint8Array(sx * sy * sz * 4);
-          data.fill(0);
+          const data = new Uint8Array(sx * sy * sz * 4).fill(0);
           // defaults to rgba and unsignedbytetype so dont need to supply format this time.
           that.volumeTexture = new THREE.DataTexture3D(data, volume.x, volume.y, volume.z);
           that.volumeTexture.minFilter = that.volumeTexture.magFilter = THREE.LinearFilter;
@@ -603,10 +570,6 @@ export class AICSview3d_PT {
       uniforms: THREE.UniformsUtils.merge([
 
         {
-          uOneOverSampleCounter: {
-            type: "f",
-            value: 0.0
-          },
           gInvExposure: {
             type: "f",
             value: 1.0 / (1.0 - 0.75)
@@ -642,7 +605,6 @@ export class AICSview3d_PT {
         'precision highp int;',
         'precision highp sampler2D;',
 
-        'uniform float uOneOverSampleCounter;',
         'uniform float gInvExposure;',
         'uniform sampler2D tTexture0;',
         'in vec2 vUv;',
@@ -658,7 +620,7 @@ export class AICSview3d_PT {
 
         'void main()',
         '{',
-          'vec4 pixelColor = texture(tTexture0, vUv);', // * uOneOverSampleCounter;',
+          'vec4 pixelColor = texture(tTexture0, vUv);',
           // TODO TONE MAP!!!!!!
           'pixelColor.rgb = XYZtoRGB(pixelColor.rgb);',
 
