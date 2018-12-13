@@ -27,7 +27,6 @@ export class AICSthreeJsPanel {
     this.animate_funcs = [];
     this.onEnterVRCallback = null;
     this.onLeaveVRCallback = null;
-    this.mousedown = false;
     this.needs_render = true;
 
     this.hasWebGL2 = false;
@@ -343,8 +342,6 @@ export class AICSthreeJsPanel {
     this.orthoControlsZ.handleResize();
     this.orthoControlsY.handleResize();
     this.orthoControlsX.handleResize();
-
-    this.mousedown = false;
   }
 
   setClearColor(color, alpha) {
@@ -361,6 +358,7 @@ export class AICSthreeJsPanel {
 
   render() {
     this.renderer.render(this.scene, this.camera);
+    // overlay
     if (this.showAxis) {
       this.renderer.autoClear = false;
       this.renderer.render(this.axisHelperScene, this.axisCamera);
@@ -368,7 +366,7 @@ export class AICSthreeJsPanel {
     }
   }
 
-  doAnimate() {
+  onAnimationLoop() {
     //var me = this;
     var delta = this.clock.getDelta();
     //console.log("DT="+delta);
@@ -380,9 +378,7 @@ export class AICSthreeJsPanel {
       this.controls.update(delta);
     }
 
-    if(this.onAnimate) {
-      this.onAnimate();
-    }
+    // do whatever we have to do before the main render of this.scene
     for(var i = 0; i < this.animate_funcs.length; i++) {
       if(this.animate_funcs[i]) {
         this.animate_funcs[i](this);
@@ -401,7 +397,7 @@ export class AICSthreeJsPanel {
 
   rerender() {
     this.needs_render = true;
-    this.renderer.setAnimationLoop(this.doAnimate.bind(this));
+    this.renderer.setAnimationLoop(this.onAnimationLoop.bind(this));
   }
 
   stoprender() {

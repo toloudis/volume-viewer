@@ -22,7 +22,9 @@ import 'three/examples/js/exporters/GLTFExporter.js';
  */
 function AICSvolumeDrawable(imageInfo) {
   
+  // THE VOLUME DATA
   this.volume = new AICSvolume(imageInfo);
+  
   this.onChannelDataReadyCallback = null;
 
   this.channel_colors = this.volume.channel_colors_default.slice();
@@ -99,6 +101,15 @@ function AICSvolumeDrawable(imageInfo) {
     this.volume.imageInfo.atlas_height, 
     this.redraw
   );
+
+  // // create one intensity lut per channel
+  // this.lut = new Array(this.volume.num_channels);
+  // for (let i = 0; i < this.volume.num_channels; ++i) {
+  //   this.lut[i] = new Uint8Array(256);
+  //   for (let j = 0; j < 256; ++j) {
+  //     this.lut[i][j] = j;
+  //   }
+  // }
 }
 
 /**

@@ -22,6 +22,7 @@ export class AICSview3d {
     this.buildScene();
   }
 
+  // prerender should be called on every redraw and should be the first thing done.
   preRender() {
     if (this.scene.getObjectByName('lightContainer')) {
       this.scene.getObjectByName('lightContainer').rotation.setFromRotationMatrix(this.canvas3d.camera.matrixWorld);
