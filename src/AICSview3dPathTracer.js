@@ -66,7 +66,8 @@ export class AICSview3d_PT {
     this.pathTracingUniforms.gCamera.value.m_U.crossVectors(this.pathTracingUniforms.gCamera.value.m_N, cam.up).normalize();
     this.pathTracingUniforms.gCamera.value.m_V.crossVectors(this.pathTracingUniforms.gCamera.value.m_U, this.pathTracingUniforms.gCamera.value.m_N).normalize();
 
-    const Scale = Math.tan(0.5 * (cam.fov * 3.14159265/180.0));
+    // the choice of y = scale/aspect or x = scale*aspect is made here to match up with the other raymarch volume
+    const Scale = Math.tan((cam.fov * 3.14159265/180.0));
     const aspect = this.pathTracingUniforms.uResolution.value.x/this.pathTracingUniforms.uResolution.value.y;
     this.pathTracingUniforms.gCamera.value.m_Screen.set(
       -Scale * aspect,
@@ -104,7 +105,7 @@ export class AICSview3d_PT {
     // DMT - this step is handled by the threeJsPanel. 
     // tell the threejs panel to use the quadCamera to render this scene.
 
-    //renderer.render( this.screenOutputScene, this.quadCamera );    
+    //renderer.render( this.screenOutputScene, this.quadCamera );
   };
 
   /**
@@ -312,7 +313,7 @@ export class AICSview3d_PT {
     this.updateLuts();
     this.updateMaterial();
 
-    console.log(this.pathTracingUniforms);
+    //console.log(this.pathTracingUniforms);
   }
 
   updateVolumeData4() {

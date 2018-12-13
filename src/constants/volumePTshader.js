@@ -237,6 +237,7 @@ void GenerateRay(in Camera cam, in vec2 Pixel, in vec2 ApertureRnd, out vec3 Ray
 
     RayO = cam.m_From;
     // negating ScreenPoint.y flips the up/down direction. depends on whether you want pixel 0 at top or bottom
+    // we could also have flipped m_Screen and m_InvScreen, or cam.m_V?
     RayD = normalize(cam.m_N + (ScreenPoint.x * cam.m_U) + (-ScreenPoint.y * cam.m_V));
 
   if (cam.m_ApertureSize != 0.0f)
@@ -264,7 +265,7 @@ bool IntersectBox(in CRay R, out float pNearT, out float pFarT)
 
   return SmallestMaxT > LargestMinT;
 }
-const float UINT16_MAX = 65535.0;
+
 const float UINT8_MAX = 1.0;//255.0;
 float GetNormalizedIntensityMax4ch(in vec3 P, out int ch)
 {

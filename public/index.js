@@ -9,6 +9,8 @@ import {
 let el = document.getElementById("volume-viewer");
 let view3D = new AICSview3d_PT(el);
 //let view3D = new AICSview3d(el);
+// TODO FIX ME : run this code after we know that the page has rendered
+view3D.resize(null, 1032, 915);
 
 const presets = {
     // channel window, level
@@ -43,7 +45,7 @@ const myState = {
     density: 50.0,
     exposure: 0.75,
     aperture: 0.0,
-    fov: 55,
+    fov: 20,
     focal_distance: 4.0,
     skyTopIntensity: 1.0,
     skyMidIntensity: 1.0,
@@ -295,7 +297,8 @@ function loadImageData(jsondata, volumedata) {
     aimg.setDensity(0.1);
     aimg.setBrightness(1.0);
 
-    view3D.resize(null, 688*1.5, 610*1.5);
+    // dpi adjustment.  TODO FIX THIS
+    //view3D.resize(null, 688*1.5, 610*1.5);
 }
 
 var xbtn = document.getElementById("X");
