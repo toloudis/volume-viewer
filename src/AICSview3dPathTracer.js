@@ -240,56 +240,16 @@ export class AICSview3d_PT {
           that.pathTracingUniforms.gStepSize.value = 1.0 * GradientDelta;
           that.pathTracingUniforms.gStepSizeShadow.value = 1.0 * GradientDelta;
 
-
-          for (let i = 0; i < 2; ++i) {
-            let lt = that.pathTracingUniforms.gLights.value[i];
-            lt.m_InvWidth = 1.0 / lt.m_Width;
-            lt.m_HalfWidth = 0.5 * lt.m_Width;
-            lt.m_InvHalfWidth = 1.0 / lt.m_HalfWidth;
-            lt.m_InvHeight = 1.0 / lt.m_Height;
-            lt.m_HalfHeight = 0.5 * lt.m_Height;
-            lt.m_InvHalfHeight = 1.0 / lt.m_HalfHeight;
-            lt.m_Target.copy(bbctr);
-
-            // Determine light position
-            lt.m_P.x = lt.m_Distance * Math.cos(lt.m_Phi) * Math.sin(lt.m_Theta);
-            lt.m_P.z = lt.m_Distance * Math.cos(lt.m_Phi) * Math.cos(lt.m_Theta);
-            lt.m_P.y = lt.m_Distance * Math.sin(lt.m_Phi);
-
-            lt.m_P.add(lt.m_Target);
-
-            // Determine area
-            if (lt.m_T === 0) {
-              lt.m_Area = lt.m_Width * lt.m_Height;
-              lt.m_AreaPdf = 1.0 / lt.m_Area;
-            }
-
-            if (lt.m_T === 1) {
-              lt.m_P.copy(bbctr);
-              // shift by nonzero amount
-              lt.m_Target.addVectors(lt.m_P, new THREE.Vector3(0.0, 0.0, 1.0));
-              lt.m_SkyRadius = 1000.0 * bbctr.length() * 2.0;
-              lt.m_Area = 4.0 * Math.PI * Math.pow(lt.m_SkyRadius, 2.0);
-              lt.m_AreaPdf = 1.0 / lt.m_Area;
-            }
-
-            // Compute orthogonal basis frame
-            lt.m_N.subVectors(lt.m_Target, lt.m_P).normalize();
-            lt.m_U.crossVectors(lt.m_N, new THREE.Vector3(0.0, 1.0, 0.0)).normalize();
-            lt.m_V.crossVectors(lt.m_N, lt.m_U).normalize();
-          }
+          that.updateLightsSecondary();
 
           that.updateActiveChannels();
 
         }
     };
 
-
-
     this.canvas3d.animate_funcs.push(this.preRender.bind(this));
     this.canvas3d.animate_funcs.push(img.onAnimate.bind(img));
     this.canvas3d.animate_funcs.push(this.renderScene.bind(this));
-
 
   };
 
@@ -398,74 +358,78 @@ export class AICSview3d_PT {
   }
 
   updateLights(state) {
-    this.pathTracingUniforms.gLights.value[0].m_ColorTop = new THREE.Vector3(
+    this.pathTracingUniforms.gLights.value[0].m_colorTop = new THREE.Vector3(
       state.skyTopIntensity*state.skyTopColor[0]/255.0,
       state.skyTopIntensity*state.skyTopColor[1]/255.0,
       state.skyTopIntensity*state.skyTopColor[2]/255.0);
-    this.pathTracingUniforms.gLights.value[0].m_ColorMiddle = new THREE.Vector3(
+    this.pathTracingUniforms.gLights.value[0].m_colorMiddle = new THREE.Vector3(
       state.skyMidIntensity*state.skyMidColor[0]/255.0,
       state.skyMidIntensity*state.skyMidColor[1]/255.0,
       state.skyMidIntensity*state.skyMidColor[2]/255.0);
-    this.pathTracingUniforms.gLights.value[0].m_ColorBottom = new THREE.Vector3(
+    this.pathTracingUniforms.gLights.value[0].m_colorBottom = new THREE.Vector3(
       state.skyBotIntensity*state.skyBotColor[0]/255.0,
       state.skyBotIntensity*state.skyBotColor[1]/255.0,
       state.skyBotIntensity*state.skyBotColor[2]/255.0);
 
 
-    this.pathTracingUniforms.gLights.value[1].m_Color = new THREE.Vector3(
+    this.pathTracingUniforms.gLights.value[1].m_color = new THREE.Vector3(
       state.lightIntensity*state.lightColor[0]/255.0,
       state.lightIntensity*state.lightColor[1]/255.0,
       state.lightIntensity*state.lightColor[2]/255.0);
-    this.pathTracingUniforms.gLights.value[1].m_Theta = state.lightTheta * 3.14159265/180.0; 
-    this.pathTracingUniforms.gLights.value[1].m_Phi = state.lightPhi * 3.14159265/180.0; 
-    this.pathTracingUniforms.gLights.value[1].m_Theta = state.lightTheta; 
-    this.pathTracingUniforms.gLights.value[1].m_Distance = state.lightDistance; 
-    this.pathTracingUniforms.gLights.value[1].m_Width = state.lightSize; 
-    this.pathTracingUniforms.gLights.value[1].m_Height = state.lightSize; 
+    this.pathTracingUniforms.gLights.value[1].m_theta = state.lightTheta * 3.14159265/180.0; 
+    this.pathTracingUniforms.gLights.value[1].m_phi = state.lightPhi * 3.14159265/180.0; 
+    this.pathTracingUniforms.gLights.value[1].m_theta = state.lightTheta; 
+    this.pathTracingUniforms.gLights.value[1].m_distance = state.lightDistance; 
+    this.pathTracingUniforms.gLights.value[1].m_width = state.lightSize; 
+    this.pathTracingUniforms.gLights.value[1].m_height = state.lightSize; 
 
+    this.updateLightsSecondary();
+
+    this.sampleCounter = 0.0;
+
+  }
+
+  updateLightsSecondary() {
     const PhysicalSize = this.image.volume.normalizedPhysicalSize;
     const bbctr = new THREE.Vector3(PhysicalSize.x*0.5, PhysicalSize.y*0.5, PhysicalSize.z*0.5);
 
     for (let i = 0; i < 2; ++i) {
       let lt = this.pathTracingUniforms.gLights.value[i];
-      lt.m_InvWidth = 1.0 / lt.m_Width;
-      lt.m_HalfWidth = 0.5 * lt.m_Width;
-      lt.m_InvHalfWidth = 1.0 / lt.m_HalfWidth;
-      lt.m_InvHeight = 1.0 / lt.m_Height;
-      lt.m_HalfHeight = 0.5 * lt.m_Height;
-      lt.m_InvHalfHeight = 1.0 / lt.m_HalfHeight;
-      lt.m_Target.copy(bbctr);
-    
+      lt.m_invWidth = 1.0 / lt.m_width;
+      lt.m_halfWidth = 0.5 * lt.m_width;
+      lt.m_invHalfWidth = 1.0 / lt.m_halfWidth;
+      lt.m_invHeight = 1.0 / lt.m_height;
+      lt.m_halfHeight = 0.5 * lt.m_height;
+      lt.m_invHalfHeight = 1.0 / lt.m_halfHeight;
+      lt.m_target.copy(bbctr);
+
       // Determine light position
-      lt.m_P.x = lt.m_Distance * Math.cos(lt.m_Phi) * Math.sin(lt.m_Theta);
-      lt.m_P.z = lt.m_Distance * Math.cos(lt.m_Phi) * Math.cos(lt.m_Theta);
-      lt.m_P.y = lt.m_Distance * Math.sin(lt.m_Phi);
-    
-      lt.m_P.add(lt.m_Target);
-    
+      lt.m_P.x = lt.m_distance * Math.cos(lt.m_phi) * Math.sin(lt.m_theta);
+      lt.m_P.z = lt.m_distance * Math.cos(lt.m_phi) * Math.cos(lt.m_theta);
+      lt.m_P.y = lt.m_distance * Math.sin(lt.m_phi);
+
+      lt.m_P.add(lt.m_target);
+
       // Determine area
-      if (lt.m_T === 0)
-      {
-        lt.m_Area = lt.m_Width * lt.m_Height;
-        lt.m_AreaPdf = 1.0 / lt.m_Area;
+      if (lt.m_T === 0) {
+        lt.m_area = lt.m_width * lt.m_height;
+        lt.m_areaPdf = 1.0 / lt.m_area;
       }
-    
-      if (lt.m_T === 1)
-      {
+
+      else if (lt.m_T === 1) {
         lt.m_P.copy(bbctr);
         // shift by nonzero amount
-        lt.m_Target.addVectors(lt.m_P, new THREE.Vector3(0.0, 0.0, 1.0));
-        lt.m_SkyRadius = 1000.0 * bbctr.length()*2.0;
-        lt.m_Area = 4.0 * Math.PI * Math.pow(lt.m_SkyRadius, 2.0);
-        lt.m_AreaPdf = 1.0 / lt.m_Area;
+        lt.m_target.addVectors(lt.m_P, new THREE.Vector3(0.0, 0.0, 1.0));
+        lt.m_skyRadius = 1000.0 * bbctr.length() * 2.0;
+        lt.m_area = 4.0 * Math.PI * Math.pow(lt.m_skyRadius, 2.0);
+        lt.m_areaPdf = 1.0 / lt.m_area;
       }
 
       // Compute orthogonal basis frame
-      lt.m_N.subVectors(lt.m_Target, lt.m_P).normalize();
+      lt.m_N.subVectors(lt.m_target, lt.m_P).normalize();
       lt.m_U.crossVectors(lt.m_N, new THREE.Vector3(0.0, 1.0, 0.0)).normalize();
       lt.m_V.crossVectors(lt.m_N, lt.m_U).normalize();
     }
-    this.sampleCounter = 0.0;
 
   }
 

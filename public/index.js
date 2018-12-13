@@ -9,7 +9,9 @@ import {
 let el = document.getElementById("volume-viewer");
 let view3D = new AICSview3d_PT(el);
 //let view3D = new AICSview3d(el);
-// TODO FIX ME : run this code after we know that the page has rendered
+
+// TODO FIX ME : run this code after we know that the page has rendered, 
+// so that the view3D can get size from el
 view3D.resize(null, 1032, 915);
 
 const presets = {
@@ -264,8 +266,7 @@ function showChannelUI(img) {
 }
 
 function loadImageData(jsondata, volumedata) {
-   // view3D.resize();
-    
+
     const aimg = new AICSvolumeDrawable(jsondata);
 
     // tell the viewer about the image
@@ -296,9 +297,6 @@ function loadImageData(jsondata, volumedata) {
     view3D.setCameraMode('3D');
     aimg.setDensity(0.1);
     aimg.setBrightness(1.0);
-
-    // dpi adjustment.  TODO FIX THIS
-    //view3D.resize(null, 688*1.5, 610*1.5);
 }
 
 var xbtn = document.getElementById("X");

@@ -1,3 +1,4 @@
+// threejs passthrough vertex shader for fullscreen quad
 export const pathTracingVertexShaderSrc = `
 #version 300 es
 precision highp float;
@@ -13,23 +14,22 @@ void main()
 export const pathTracingFragmentShaderSrc = `
 #version 300 es
 
-
 precision highp float;
 precision highp int;
 precision highp sampler2D;
 precision highp sampler3D;
 
-const float PI = 3.1415926535897932384626433832795;
-const float PI_2 = 1.57079632679489661923;
-const float PI_4 = 0.785398163397448309616;
-const vec3 SPEC_BLACK = vec3(0,0,0);
-const vec3 SPEC_WHITE = vec3(1.0,1.0,1.0);
-const int ShaderType_Brdf = 0;
-const int ShaderType_Phase = 1;
+#define PI (3.1415926535897932384626433832795)
+#define PI_OVER_2 (1.57079632679489661923)
+#define PI_OVER_4 (0.785398163397448309616)
 #define INV_PI (1.0/PI)
 #define INV_2_PI (0.5/PI)
-#define INV_TWO_PI (0.5/PI)
 #define INV_4_PI (0.25/PI)
+
+const vec3 BLACK = vec3(0,0,0);
+const vec3 WHITE = vec3(1.0,1.0,1.0);
+const int ShaderType_Brdf = 0;
+const int ShaderType_Phase = 1;
 
 in vec2 vUv;
 out vec4 out_FragColor;
@@ -46,30 +46,30 @@ struct Camera {
 uniform Camera gCamera;
 
 struct Light {
-	float			m_Theta;
-	float			m_Phi;
-	float			m_Width;
-	float			m_InvWidth;
-	float			m_HalfWidth;
-	float			m_InvHalfWidth;
-	float			m_Height;
-	float			m_InvHeight;
-	float			m_HalfHeight;
-	float			m_InvHalfHeight;
-	float			m_Distance;
-	float			m_SkyRadius;
-	vec3			m_P;
-	vec3			m_Target;
-	vec3			m_N;
-	vec3			m_U;
-	vec3			m_V;
-	float			m_Area;
-	float			m_AreaPdf;
-	vec3	m_Color;
-	vec3	m_ColorTop;
-	vec3	m_ColorMiddle;
-	vec3	m_ColorBottom;
-	int				m_T;
+  float   m_theta;
+  float   m_phi;
+  float   m_width;
+  float   m_invWidth;
+  float   m_halfWidth;
+  float   m_invHalfWidth;
+  float   m_height;
+  float   m_invHeight;
+  float   m_halfHeight;
+  float   m_invHalfHeight;
+  float   m_distance;
+  float   m_skyRadius;
+  vec3    m_P;
+  vec3    m_target;
+  vec3    m_N;
+  vec3    m_U;
+  vec3    m_V;
+  float   m_area;
+  float   m_areaPdf;
+  vec3    m_color;
+  vec3    m_colorTop;
+  vec3    m_colorMiddle;
+  vec3    m_colorBottom;
+  int     m_T;
 };
 
 uniform Light gLights[2];
@@ -88,6 +88,8 @@ uniform vec3 gGradientDeltaY;
 uniform vec3 gGradientDeltaZ;
 uniform float gInvGradientDelta;
 uniform float gGradientFactor;
+uniform float uShowLights;
+
 // per channel 
 uniform sampler2D g_lutTexture[4];
 uniform vec4 g_intensityMax;
@@ -98,10 +100,10 @@ uniform vec3 g_Diffuse[4];
 uniform vec3 g_Specular[4];
 uniform float g_Roughness[4];
 
+// compositing / progressive render
 uniform float uFrameCounter;
 uniform float uSampleCounter;
 uniform vec2 uResolution;
-uniform float uShowLights;
 uniform sampler2D tPreviousTexture;
 
 // from iq https://www.shadertoy.com/view/4tXyWN
@@ -112,6 +114,7 @@ float rand( inout uvec2 seed )
       uint  n = 1103515245U * ( (q.x) ^ (q.y >> 3U) );
   return float(n) * (1.0 / float(0xffffffffU));
 }
+
 vec3 XYZtoRGB(vec3 xyz) {
   return vec3(
     3.240479f*xyz[0] - 1.537150f*xyz[1] - 0.498535f*xyz[2],
@@ -119,7 +122,6 @@ vec3 XYZtoRGB(vec3 xyz) {
     0.055648f*xyz[0] - 0.204043f*xyz[1] + 1.057311f*xyz[2]
   );
 }
-
 
 vec3 RGBtoXYZ(vec3 rgb) {
   return vec3(
@@ -129,29 +131,33 @@ vec3 RGBtoXYZ(vec3 rgb) {
   );
 }
 
-vec3 UniformSampleSphere(in vec2 U)
+vec3 getUniformSphereSample(in vec2 U)
 {
-	float z = 1.f - 2.f * U.x;
-	float r = sqrt(max(0.f, 1.f - z*z));
-	float phi = 2.f * PI * U.y;
-	float x = r * cos(phi);
-	float y = r * sin(phi);
-	return vec3(x, y, z);
+  float z = 1.f - 2.f * U.x;
+  float r = sqrt(max(0.f, 1.f - z*z));
+  float phi = 2.f * PI * U.y;
+  float x = r * cos(phi);
+  float y = r * sin(phi);
+  return vec3(x, y, z);
 }
+
 float SphericalPhi(in vec3 Wl)
 {
-	float p = atan(Wl.z, Wl.x);
-	return (p < 0.f) ? p + 2.f * PI : p;
+  float p = atan(Wl.z, Wl.x);
+  return (p < 0.f) ? p + 2.f * PI : p;
 }
+
 float SphericalTheta(in vec3 Wl)
 {
-	return acos(clamp(Wl.y, -1.f, 1.f));
+  return acos(clamp(Wl.y, -1.f, 1.f));
 }
+
 bool SameHemisphere(in vec3 Ww1, in vec3 Ww2)
 {
    return (Ww1.z * Ww2.z) > 0.0f;
 }
-vec2 ConcentricSampleDisk(in vec2 U)
+
+vec2 getConcentricDiskSample(in vec2 U)
 {
   float r, theta;
   // Map uniform random numbers to [-1,1]^2
@@ -199,78 +205,78 @@ vec2 ConcentricSampleDisk(in vec2 U)
     }
   }
   
-  theta *= PI_4;
+  theta *= PI_OVER_4;
 
   return vec2(r*cos(theta), r*sin(theta));
 }
 
-vec3 CosineWeightedHemisphere(in vec2 U)
+vec3 getCosineWeightedHemisphereSample(in vec2 U)
 {
-	vec2 ret = ConcentricSampleDisk(U);
-	return vec3(ret.x, ret.y, sqrt(max(0.f, 1.f - ret.x * ret.x - ret.y * ret.y)));
+  vec2 ret = getConcentricDiskSample(U);
+  return vec3(ret.x, ret.y, sqrt(max(0.f, 1.f - ret.x * ret.x - ret.y * ret.y)));
 }
 
-struct CRay {
+struct Ray {
   vec3 m_O;
   vec3 m_D;
   float m_MinT, m_MaxT;
 };
 
-CRay newRay(in vec3 o, in vec3 d) {
-  return CRay(o, d, 0.0, 1500000.0);
+Ray newRay(in vec3 o, in vec3 d) {
+  return Ray(o, d, 0.0, 1500000.0);
 }
 
-CRay newRayT(in vec3 o, in vec3 d, in float t0, in float t1) {
-  return CRay(o, d, t0, t1);
+Ray newRayT(in vec3 o, in vec3 d, in float t0, in float t1) {
+  return Ray(o, d, t0, t1);
 }
 
-vec3 rayAt(CRay r, float t) {
+vec3 rayAt(Ray r, float t) {
   return r.m_O + t*r.m_D;
 }
 
-void GenerateRay(in Camera cam, in vec2 Pixel, in vec2 ApertureRnd, out vec3 RayO, out vec3 RayD)
+Ray GenerateCameraRay(in Camera cam, in vec2 Pixel, in vec2 ApertureRnd)
 {
-    vec2 ScreenPoint;
+  vec2 ScreenPoint;
 
-    ScreenPoint.x = cam.m_Screen.x + (cam.m_InvScreen.x * Pixel.x);
-    ScreenPoint.y = cam.m_Screen.z + (cam.m_InvScreen.y * Pixel.y);
+  ScreenPoint.x = cam.m_Screen.x + (cam.m_InvScreen.x * Pixel.x);
+  ScreenPoint.y = cam.m_Screen.z + (cam.m_InvScreen.y * Pixel.y);
 
-    RayO = cam.m_From;
-    // negating ScreenPoint.y flips the up/down direction. depends on whether you want pixel 0 at top or bottom
-    // we could also have flipped m_Screen and m_InvScreen, or cam.m_V?
-    RayD = normalize(cam.m_N + (ScreenPoint.x * cam.m_U) + (-ScreenPoint.y * cam.m_V));
+  vec3 RayO = cam.m_From;
+  // negating ScreenPoint.y flips the up/down direction. depends on whether you want pixel 0 at top or bottom
+  // we could also have flipped m_Screen and m_InvScreen, or cam.m_V?
+  vec3 RayD = normalize(cam.m_N + (ScreenPoint.x * cam.m_U) + (-ScreenPoint.y * cam.m_V));
 
   if (cam.m_ApertureSize != 0.0f)
   {
-    vec2 LensUV = cam.m_ApertureSize * ConcentricSampleDisk(ApertureRnd);
+    vec2 LensUV = cam.m_ApertureSize * getConcentricDiskSample(ApertureRnd);
 
     vec3 LI = cam.m_U * LensUV.x + cam.m_V * LensUV.y;
     RayO += LI;
     RayD = normalize((RayD * cam.m_FocalDistance) - LI);
   }
+
+  return newRay(RayO, RayD);
 }
 
-bool IntersectBox(in CRay R, out float pNearT, out float pFarT)
+bool IntersectBox(in Ray R, out float pNearT, out float pFarT)
 {
-  vec3 InvR		= vec3(1.0f, 1.0f, 1.0f) / R.m_D;
-  vec3 BottomT		= InvR * (vec3(gClippedAaBbMin.x, gClippedAaBbMin.y, gClippedAaBbMin.z) - R.m_O);
-  vec3 TopT		= InvR * (vec3(gClippedAaBbMax.x, gClippedAaBbMax.y, gClippedAaBbMax.z) - R.m_O);
-  vec3 MinT		= min(TopT, BottomT);
-  vec3 MaxT		= max(TopT, BottomT);
-  float LargestMinT = max(max(MinT.x, MinT.y), max(MinT.x, MinT.z));
-  float SmallestMaxT = min(min(MaxT.x, MaxT.y), min(MaxT.x, MaxT.z));
+  vec3 invR		= vec3(1.0f, 1.0f, 1.0f) / R.m_D;
+  vec3 bottomT		= invR * (vec3(gClippedAaBbMin.x, gClippedAaBbMin.y, gClippedAaBbMin.z) - R.m_O);
+  vec3 topT		= invR * (vec3(gClippedAaBbMax.x, gClippedAaBbMax.y, gClippedAaBbMax.z) - R.m_O);
+  vec3 minT		= min(topT, bottomT);
+  vec3 maxT		= max(topT, bottomT);
+  float largestMinT = max(max(minT.x, minT.y), max(minT.x, minT.z));
+  float smallestMaxT = min(min(maxT.x, maxT.y), min(maxT.x, maxT.z));
 
-  pNearT = LargestMinT;
-  pFarT	= SmallestMaxT;
+  pNearT = largestMinT;
+  pFarT	= smallestMaxT;
 
-  return SmallestMaxT > LargestMinT;
+  return smallestMaxT > largestMinT;
 }
 
 const float UINT8_MAX = 1.0;//255.0;
 float GetNormalizedIntensityMax4ch(in vec3 P, out int ch)
 {
-  //float factor = (tex3D<float>(volumeData.volumeTexture[5], P.x * gInvAaBbMax.x, P.y * gInvAaBbMax.y, P.z * gInvAaBbMax.z));
-  //factor = (factor > 0) ? 1.0 : 0.0;
   vec4 intensity = UINT8_MAX * texture(volumeTexture, P * gInvAaBbMax);
 
   float maxIn = 0.0;
@@ -290,6 +296,15 @@ float GetNormalizedIntensityMax4ch(in vec3 P, out int ch)
   }
   return maxIn; // *factor;
 }
+
+float GetNormalizedIntensity(in vec3 P, in int ch)
+{
+  float intensity = UINT8_MAX * texture(volumeTexture, P * gInvAaBbMax)[ch];
+  intensity = (intensity - g_intensityMin[ch]) / (g_intensityMax[ch] - g_intensityMin[ch]);
+  intensity = texture(g_lutTexture[ch], vec2(intensity, 0.5)).x;
+  return intensity;
+}
+
 float GetNormalizedIntensity4ch(vec3 P, int ch)
 {
   vec4 intensity = UINT8_MAX * texture(volumeTexture, P * gInvAaBbMax);
@@ -300,7 +315,6 @@ float GetNormalizedIntensity4ch(vec3 P, int ch)
 
   return intensityf;
 }
-
 
 // note that gInvGradientDelta is maxpixeldim of volume
 // gGradientDeltaX,Y,Z is 1/X,Y,Z of volume
@@ -322,33 +336,36 @@ float GetOpacity(float NormalizedIntensity, int ch)
   float Intensity = NormalizedIntensity * g_opacity[ch];
   return Intensity;
 }
+
 vec3 GetEmissionN(float NormalizedIntensity, int ch)
 {
   return g_Emissive[ch];
 }
-   
+
 vec3 GetDiffuseN(float NormalizedIntensity, int ch)
 {
-	return g_Diffuse[ch];
+  return g_Diffuse[ch];
 }
 
 vec3 GetSpecularN(float NormalizedIntensity, int ch)
 {
-	return g_Specular[ch];
+  return g_Specular[ch];
 }
+
 float GetRoughnessN(float NormalizedIntensity, int ch)
 {
-	return g_Roughness[ch];
+  return g_Roughness[ch];
 }
 
 // a bsdf sample, a sample on a light source, and a randomly chosen light index
 struct CLightingSample {
-	float	m_bsdfComponent;
-	vec2	m_bsdfDir;
-	vec2 m_lightPos;
-	float m_lightComponent;
-	float			m_LightNum;
+  float m_bsdfComponent;
+  vec2  m_bsdfDir;
+  vec2  m_lightPos;
+  float m_lightComponent;
+  float m_LightNum;
 };
+
 CLightingSample LightingSample_LargeStep(inout uvec2 seed) {
   return CLightingSample(
     rand(seed), 
@@ -362,165 +379,151 @@ CLightingSample LightingSample_LargeStep(inout uvec2 seed) {
 // return a color xyz
 vec3 Light_Le(in Light light, in vec2 UV)
 {
-	if (light.m_T == 0)
-		return RGBtoXYZ(light.m_Color) / light.m_Area;
+  if (light.m_T == 0)
+    return RGBtoXYZ(light.m_color) / light.m_area;
 
-	if (light.m_T == 1)
-	{
-		if (UV.y > 0.0f)
-			return RGBtoXYZ(mix(light.m_ColorMiddle, light.m_ColorTop, abs(UV.y)));
-		else
-			return RGBtoXYZ(mix(light.m_ColorMiddle, light.m_ColorBottom, abs(UV.y)));
-	}
+  if (light.m_T == 1)
+  {
+    if (UV.y > 0.0f)
+      return RGBtoXYZ(mix(light.m_colorMiddle, light.m_colorTop, abs(UV.y)));
+    else
+      return RGBtoXYZ(mix(light.m_colorMiddle, light.m_colorBottom, abs(UV.y)));
+  }
 
-	return SPEC_BLACK;
+  return BLACK;
 }
 
 // return a color xyz
-vec3 Light_SampleL(in Light light, in vec3 P, out CRay Rl, out float Pdf, in CLightingSample LS)
+vec3 Light_SampleL(in Light light, in vec3 P, out Ray Rl, out float Pdf, in CLightingSample LS)
 {
-	vec3 L = SPEC_BLACK;
-Pdf = 0.0;
-vec3 Ro = vec3(0,0,0), Rd = vec3(0,0,1);
-	if (light.m_T == 0)
-	{
-		Ro = (light.m_P + ((-0.5f + LS.m_lightPos.x) * light.m_Width * light.m_U) + ((-0.5f + LS.m_lightPos.y) * light.m_Height * light.m_V));
-		Rd = normalize(P - Ro);
-		L = dot(Rd, light.m_N) > 0.0f ? Light_Le(light, vec2(0.0f)) : SPEC_BLACK;
-		Pdf = abs(dot(Rd, light.m_N)) > 0.0f ? dot(P-Ro, P-Ro) / (abs(dot(Rd, light.m_N)) * light.m_Area) : 0.0f;
+  vec3 L = BLACK;
+  Pdf = 0.0;
+  vec3 Ro = vec3(0,0,0), Rd = vec3(0,0,1);
+  if (light.m_T == 0)
+  {
+    Ro = (light.m_P + ((-0.5f + LS.m_lightPos.x) * light.m_width * light.m_U) + ((-0.5f + LS.m_lightPos.y) * light.m_height * light.m_V));
+    Rd = normalize(P - Ro);
+    L = dot(Rd, light.m_N) > 0.0f ? Light_Le(light, vec2(0.0f)) : BLACK;
+    Pdf = abs(dot(Rd, light.m_N)) > 0.0f ? dot(P-Ro, P-Ro) / (abs(dot(Rd, light.m_N)) * light.m_area) : 0.0f;
+  }
+  else if (light.m_T == 1)
+  {
+    Ro = light.m_P + light.m_skyRadius * getUniformSphereSample(LS.m_lightPos);
+    Rd = normalize(P - Ro);
+    L = Light_Le(light, vec2(1.0f) - 2.0f * LS.m_lightPos);
+    Pdf = pow(light.m_skyRadius, 2.0f) / light.m_area;
   }
 
-	if (light.m_T == 1)
-	{
-		Ro = light.m_P + light.m_SkyRadius * UniformSampleSphere(LS.m_lightPos);
-		Rd = normalize(P - Ro);
-		L = Light_Le(light, vec2(1.0f) - 2.0f * LS.m_lightPos);
-		Pdf = pow(light.m_SkyRadius, 2.0f) / light.m_Area;
-	}
+  Rl = Ray(Ro, Rd, 0.0f, length(P - Ro));
 
-  Rl = CRay(Ro, Rd, 0.0f, length(P - Ro));
-
-	return L;
+  return L;
 }
 
 // Intersect ray with light
-bool Light_Intersect(Light light, inout CRay R, out float T, out vec3 L, out float pPdf)
+bool Light_Intersect(Light light, inout Ray R, out float T, out vec3 L, out float pPdf)
 {
-	if (light.m_T == 0)
-	{
-		// Compute projection
-		float DotN = dot(R.m_D, light.m_N);
+  if (light.m_T == 0)
+  {
+    // Compute projection
+    float DotN = dot(R.m_D, light.m_N);
 
-		// Rays is co-planar with light surface
-		if (DotN >= 0.0f)
-			return false;
+    // Ray is coplanar with light surface
+    if (DotN >= 0.0f)
+      return false;
 
-		// Compute hit distance
-		T = (-light.m_Distance - dot(R.m_O, light.m_N)) / DotN;
+    // Compute hit distance
+    T = (-light.m_distance - dot(R.m_O, light.m_N)) / DotN;
 
-		// Intersection is in ray's negative direction
-		if (T < R.m_MinT || T > R.m_MaxT)
-			return false;
+    // Intersection is in ray's negative direction
+    if (T < R.m_MinT || T > R.m_MaxT)
+      return false;
 
-		// Determine position on light
-		vec3 Pl = rayAt(R, T);
+    // Determine position on light
+    vec3 Pl = rayAt(R, T);
 
-		// Vector from point on area light to center of area light
-		vec3 Wl = Pl - light.m_P;
+    // Vector from point on area light to center of area light
+    vec3 Wl = Pl - light.m_P;
 
-		// Compute texture coordinates
-		vec2 UV = vec2(dot(Wl, light.m_U), dot(Wl, light.m_V));
+    // Compute texture coordinates
+    vec2 UV = vec2(dot(Wl, light.m_U), dot(Wl, light.m_V));
 
-		// Check if within bounds of light surface
-		if (UV.x > light.m_HalfWidth || UV.x < -light.m_HalfWidth || UV.y > light.m_HalfHeight || UV.y < -light.m_HalfHeight)
-			return false;
+    // Check if within bounds of light surface
+    if (UV.x > light.m_halfWidth || UV.x < -light.m_halfWidth || UV.y > light.m_halfHeight || UV.y < -light.m_halfHeight)
+      return false;
 
-		R.m_MaxT = T;
+    R.m_MaxT = T;
 
     //pUV = UV;
 
-		if (DotN < 0.0f)
-			L = RGBtoXYZ(light.m_Color) / light.m_Area;
-		else
-			L = SPEC_BLACK;
+    if (DotN < 0.0f)
+      L = RGBtoXYZ(light.m_color) / light.m_area;
+    else
+      L = BLACK;
 
-		pPdf = dot(R.m_O-Pl, R.m_O-Pl) / (DotN * light.m_Area);
+    pPdf = dot(R.m_O-Pl, R.m_O-Pl) / (DotN * light.m_area);
 
-		return true;
-	}
+    return true;
+  }
 
-	if (light.m_T == 1)
-	{
-		T = light.m_SkyRadius;
+  else if (light.m_T == 1)
+  {
+    T = light.m_skyRadius;
 
-		// Intersection is in ray's negative direction
-		if (T < R.m_MinT || T > R.m_MaxT)
-			return false;
+    // Intersection is in ray's negative direction
+    if (T < R.m_MinT || T > R.m_MaxT)
+      return false;
 
-		R.m_MaxT = T;
+    R.m_MaxT = T;
 
-		vec2 UV = vec2(SphericalPhi(R.m_D) * INV_TWO_PI, SphericalTheta(R.m_D) * INV_PI);
+    vec2 UV = vec2(SphericalPhi(R.m_D) * INV_2_PI, SphericalTheta(R.m_D) * INV_PI);
 
-		L = Light_Le(light, vec2(1.0f,1.0f) - 2.0f * UV);
+    L = Light_Le(light, vec2(1.0f,1.0f) - 2.0f * UV);
 
-    pPdf = pow(light.m_SkyRadius, 2.0f) / light.m_Area;
+    pPdf = pow(light.m_skyRadius, 2.0f) / light.m_area;
     //pUV = UV;
 
-		return true;
-	}
+    return true;
+  }
 
-	return false;
+  return false;
 }
 
 float Light_Pdf(in Light light, in vec3 P, in vec3 Wi)
 {
-	vec3 L;
-	vec2 UV;
-	float Pdf = 1.0f;
+  vec3 L;
+  vec2 UV;
+  float Pdf = 1.0f;
 
-	CRay Rl = CRay(P, Wi, 0.0f, 100000.0f);
+  Ray Rl = Ray(P, Wi, 0.0f, 100000.0f);
 
-	if (light.m_T == 0)
-	{
-		float T = 0.0f;
+  if (light.m_T == 0)
+  {
+    float T = 0.0f;
 
-		if (!Light_Intersect(light, Rl, T, L, Pdf))
-			return 0.0f;
+    if (!Light_Intersect(light, Rl, T, L, Pdf))
+      return 0.0f;
 
-		return pow(T, 2.0f) / (abs(dot(light.m_N, -Wi)) * light.m_Area);
-	}
+    return pow(T, 2.0f) / (abs(dot(light.m_N, -Wi)) * light.m_area);
+  }
 
-	if (light.m_T == 1)
-	{
-		return pow(light.m_SkyRadius, 2.0f) / light.m_Area;
-	}
+  else if (light.m_T == 1)
+  {
+    return pow(light.m_skyRadius, 2.0f) / light.m_area;
+  }
 
-	return 0.0f;
+  return 0.0f;
 }
 
 struct CVolumeShader {
-  int				m_Type; // 0 = bsdf, 1 = phase
+  int m_Type; // 0 = bsdf, 1 = phase
 
   vec3 m_Kd; // isotropic phase // xyz color
-
-
-  // CBRDF				m_Brdf;
-  //   Vec3f			m_Nn;
-  //   Vec3f			m_Nu;
-  //   Vec3f			m_Nv;
-  //   CLambertian		m_Lambertian;
-  //   CMicrofacet		m_Microfacet;
   vec3 m_R; // specular reflectance
   float m_Ior;
   float m_Exponent;
   vec3 m_Nn;
   vec3 m_Nu;
   vec3 m_Nv;
-
-  // m_Nn(N),
-  // m_Nu(Normalize(Cross(N, Wo))),
-  // m_Nv(Normalize(Cross(N, m_Nu)))
-
 };
 
 // return a xyz color
@@ -536,7 +539,7 @@ float ShaderPhase_Pdf(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
 
 vec3 ShaderPhase_SampleF(in CVolumeShader shader, in vec3 Wo, out vec3 Wi, out float Pdf, in vec2 U)
 {
-  Wi	= UniformSampleSphere(U);
+  Wi	= getUniformSphereSample(U);
   Pdf	= ShaderPhase_Pdf(shader, Wo, Wi);
 
   return ShaderPhase_F(shader, Wo, Wi);
@@ -557,7 +560,7 @@ float Lambertian_Pdf(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
 // return a xyz color
 vec3 Lambertian_SampleF(in CVolumeShader shader, in vec3 Wo, out vec3 Wi, out float Pdf, in vec2 U)
 {
-  Wi = CosineWeightedHemisphere(U);
+  Wi = getCosineWeightedHemisphereSample(U);
 
   if (Wo.z < 0.0f)
     Wi.z *= -1.0f;
@@ -569,7 +572,7 @@ vec3 Lambertian_SampleF(in CVolumeShader shader, in vec3 Wo, out vec3 Wi, out fl
 
 vec3 SphericalDirection(in float SinTheta, in float CosTheta, in float Phi)
 {
-	return vec3(SinTheta * cos(Phi), SinTheta * sin(Phi), CosTheta);
+  return vec3(SinTheta * cos(Phi), SinTheta * sin(Phi), CosTheta);
 }
 
 void Blinn_SampleF(in CVolumeShader shader, in vec3 Wo, out vec3 Wi, out float Pdf, in vec2 U)
@@ -599,7 +602,7 @@ void Blinn_SampleF(in CVolumeShader shader, in vec3 Wo, out vec3 Wi, out float P
 float Blinn_D(in CVolumeShader shader, in vec3 wh)
 {
   float costhetah = abs(wh.z);//AbsCosTheta(wh);
-  return (shader.m_Exponent+2.0) * INV_TWO_PI * pow(costhetah, shader.m_Exponent);
+  return (shader.m_Exponent+2.0) * INV_2_PI * pow(costhetah, shader.m_Exponent);
 }
 float Microfacet_G(in CVolumeShader shader, in vec3 wo, in vec3 wi, in vec3 wh)
 {
@@ -617,17 +620,17 @@ vec3 Microfacet_F(in CVolumeShader shader, in vec3 wo, in vec3 wi)
   float cosThetaI = abs(wi.z);//AbsCosTheta(wi);
 
   if (cosThetaI == 0.f || cosThetaO == 0.f)
-    return SPEC_BLACK;
+    return BLACK;
 
   vec3 wh = wi + wo;
 
   if (wh.x == 0. && wh.y == 0. && wh.z == 0.)
-    return SPEC_BLACK;
+    return BLACK;
 
   wh = normalize(wh);
   float cosThetaH = dot(wi, wh);
 
-  vec3 F = SPEC_WHITE;//m_Fresnel.Evaluate(cosThetaH);
+  vec3 F = WHITE;//m_Fresnel.Evaluate(cosThetaH);
 
   return shader.m_R * Blinn_D(shader, wh) * Microfacet_G(shader, wo, wi, wh) * F / (4.f * cosThetaI * cosThetaO);
 }
@@ -663,7 +666,7 @@ vec3 Microfacet_SampleF(in CVolumeShader shader, in vec3 wo, out vec3 wi, out fl
   Blinn_SampleF(shader, wo, wi, Pdf, U);
 
   if (!SameHemisphere(wo, wi))
-    return SPEC_BLACK;
+    return BLACK;
 
   return Microfacet_F(shader, wo, wi);
 }
@@ -772,11 +775,11 @@ float PowerHeuristic(float nf, float fPdf, float ng, float gPdf)
 {
   float f = nf * fPdf;
   float g = ng * gPdf;
-	return (f * f) / (f * f + g * g); 
+  return (f * f) / (f * f + g * g); 
 }
 
 // "shadow ray" using gStepSizeShadow, test whether it can exit the volume or not
-bool FreePathRM(inout CRay R, inout uvec2 seed)
+bool FreePathRM(inout Ray R, inout uvec2 seed)
 {
   float MinT;
   float MaxT;
@@ -789,8 +792,8 @@ bool FreePathRM(inout CRay R, inout uvec2 seed)
   MaxT = min(MaxT, R.m_MaxT);
 
   float S	= -log(rand(seed)) / gDensityScale;
-  float Sum		= 0.0f;
-  float SigmaT	= 0.0f;
+  float Sum = 0.0f;
+  float SigmaT = 0.0f;
 
   MinT += rand(seed) * gStepSizeShadow;
   int ch = 0;
@@ -804,106 +807,99 @@ bool FreePathRM(inout CRay R, inout uvec2 seed)
     
     intensity = GetNormalizedIntensityMax4ch(Ps, ch);
     SigmaT = gDensityScale * GetOpacity(intensity, ch);
-    // SigmaT = gDensityScale * GetBlendedOpacity(volumedata, GetIntensity4ch(Ps, volumedata));
 
-    Sum			+= SigmaT * gStepSizeShadow;
-    MinT	+= gStepSizeShadow;
+    Sum += SigmaT * gStepSizeShadow;
+    MinT += gStepSizeShadow;
   }
 
   return true;
 }
 
 
-int NearestLight(CRay R, out vec3 LightColor, out vec3 Pl, out float pPdf)
+int NearestLight(Ray R, out vec3 LightColor, out vec3 Pl, out float pPdf)
 {
-	int Hit = -1;
-	
-	float T = 0.0f;
+  int Hit = -1;
+  
+  float T = 0.0f;
 
-	CRay RayCopy = R;
+  Ray RayCopy = R;
 
-	float Pdf = 0.0f;
+  float Pdf = 0.0f;
 
-	//printf(" LIGHTS %d", lighting.m_NoLights);
-	for (int i = 0; i < 2; i++)
-	{
-		if (Light_Intersect(gLights[i], RayCopy, T, LightColor, Pdf))
-		{
-			Pl		= rayAt(R, T);
-			Hit		= i;
-		}
-	}
+  for (int i = 0; i < 2; i++)
+  {
+    if (Light_Intersect(gLights[i], RayCopy, T, LightColor, Pdf))
+    {
+      Pl = rayAt(R, T);
+      Hit = i;
+    }
+  }
 
-	pPdf = Pdf;
+  pPdf = Pdf;
 
-	return Hit;
+  return Hit;
 }
 
 // return a XYZ color
 vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, in CLightingSample LS, in vec3 Wo, in vec3 Pe, in vec3 N, inout uvec2 seed)
 {
-	vec3 Ld = SPEC_BLACK, Li = SPEC_BLACK, F = SPEC_BLACK;
+  vec3 Ld = BLACK, Li = BLACK, F = BLACK;
 
-	//CColorRgbHdr diffuse = GetBlendedDiffuse(volumedata, Density);
-	vec3 diffuse = GetDiffuseN(Density, ch);
-	//CColorRgbHdr specular = GetBlendedSpecular(volumedata, Density);
-	vec3 specular = GetSpecularN(Density, ch);
-	//float roughness = GetBlendedRoughness(volumedata, Density);
-	float roughness = GetRoughnessN(Density, ch);
+  vec3 diffuse = GetDiffuseN(Density, ch);
+  vec3 specular = GetSpecularN(Density, ch);
+  float roughness = GetRoughnessN(Density, ch);
 
-  //CVolumeShader Shader(shaderType, N, Wo, RGBtoXYZ(diffuse), RGBtoXYZ(specular), 2.5f, roughness);
-  
   vec3 nu = normalize(cross(N, Wo));
   vec3 nv = normalize(cross(N, nu));
-	CVolumeShader Shader = CVolumeShader(shaderType, RGBtoXYZ(diffuse), RGBtoXYZ(specular), 2.5f, roughness, N, nu, nv);
+  CVolumeShader Shader = CVolumeShader(shaderType, RGBtoXYZ(diffuse), RGBtoXYZ(specular), 2.5f, roughness, N, nu, nv);
 
-	float LightPdf = 1.0f, ShaderPdf = 1.0f;
-	
+  float LightPdf = 1.0f, ShaderPdf = 1.0f;
+  
 
-	CRay Rl = CRay(vec3(0,0,0), vec3(0,0,1.0), 0.0, 1500000.0f); 
- 	Li = Light_SampleL(light, Pe, Rl, LightPdf, LS);
-	
-	//const CudaLight* pLight = NULL;
+  Ray Rl = Ray(vec3(0,0,0), vec3(0,0,1.0), 0.0, 1500000.0f); 
+   Li = Light_SampleL(light, Pe, Rl, LightPdf, LS);
+  
+  //const CudaLight* pLight = NULL;
 
-	vec3 Wi = -Rl.m_D, P = vec3(0,0,0);
-	//Wi = -Rl.m_D; 
+  vec3 Wi = -Rl.m_D, P = vec3(0,0,0);
+  //Wi = -Rl.m_D; 
 
-	F = Shader_F(Shader,Wo, Wi); 
+  F = Shader_F(Shader,Wo, Wi); 
   //return RGBtoXYZ(Wo);
   //return RGBtoXYZ(Wi);
-	ShaderPdf = Shader_Pdf(Shader, Wo, Wi);
+  ShaderPdf = Shader_Pdf(Shader, Wo, Wi);
 
 //if (ShaderPdf < 0.0f) {
 //  return vec3(1,1,1);
 //}
-	if (!IsBlack(Li) && (ShaderPdf > 0.0f) && (LightPdf > 0.0f) && !FreePathRM(Rl, seed))
-	{
-		float WeightMIS = PowerHeuristic(1.0f, LightPdf, 1.0f, ShaderPdf);
-		
-		if (shaderType == ShaderType_Brdf){
-			Ld += F * Li * abs(dot(Wi, N)) * WeightMIS / LightPdf;
+  if (!IsBlack(Li) && (ShaderPdf > 0.0f) && (LightPdf > 0.0f) && !FreePathRM(Rl, seed))
+  {
+    float WeightMIS = PowerHeuristic(1.0f, LightPdf, 1.0f, ShaderPdf);
+    
+    if (shaderType == ShaderType_Brdf){
+      Ld += F * Li * abs(dot(Wi, N)) * WeightMIS / LightPdf;
     }
 
-		if (shaderType == ShaderType_Phase){
-			Ld += F * Li * WeightMIS / LightPdf;
+    if (shaderType == ShaderType_Phase){
+      Ld += F * Li * WeightMIS / LightPdf;
     }
-	}
+  }
 
-	F = Shader_SampleF(Shader, LS, Wo, Wi, ShaderPdf, LS.m_bsdfDir);
+  F = Shader_SampleF(Shader, LS, Wo, Wi, ShaderPdf, LS.m_bsdfDir);
 
-	if (!IsBlack(F) && (ShaderPdf > 0.0f))
-	{
+  if (!IsBlack(F) && (ShaderPdf > 0.0f))
+  {
     vec3 Pl = vec3(0,0,0);
-		int n = NearestLight(CRay(Pe, Wi, 0.0f, 1000000.0f), Li, Pl, LightPdf);
-		if (n > -1)
-		{
-			Light pLight = gLights[n];
-			LightPdf = Light_Pdf(pLight, Pe, Wi);
+    int n = NearestLight(Ray(Pe, Wi, 0.0f, 1000000.0f), Li, Pl, LightPdf);
+    if (n > -1)
+    {
+      Light pLight = gLights[n];
+      LightPdf = Light_Pdf(pLight, Pe, Wi);
 
-			if ((LightPdf > 0.0f) && !IsBlack(Li)) {
-				CRay rr = CRay(Pl, normalize(Pe - Pl), 0.0f, length(Pe - Pl));
-				if (!FreePathRM(rr, seed))
-				{
+      if ((LightPdf > 0.0f) && !IsBlack(Li)) {
+        Ray rr = Ray(Pl, normalize(Pe - Pl), 0.0f, length(Pe - Pl));
+        if (!FreePathRM(rr, seed))
+        {
           float WeightMIS = PowerHeuristic(1.0f, ShaderPdf, 1.0f, LightPdf);
 
           if (shaderType == ShaderType_Brdf) {
@@ -914,14 +910,14 @@ vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, 
           if (shaderType == ShaderType_Phase) {
             Ld += F * Li * WeightMIS / ShaderPdf;
           }
-				}
+        }
 
-			}
-		}
-	}
+      }
+    }
+  }
 
   //return vec3(1,1,1);
-	return Ld;
+  return Ld;
 }
 
 // return a linear xyz color
@@ -932,7 +928,7 @@ vec3 UniformSampleOneLight(int shaderType, float Density, int ch, in vec3 Wo, in
   int NumLights = 2;//lighting.m_NoLights;
 
   if (NumLights == 0)
-    return SPEC_BLACK;
+    return BLACK;
 
   CLightingSample LS = LightingSample_LargeStep(seed);
   // select a random light, a random 2d sample on light, and a random 2d sample on brdf
@@ -946,14 +942,14 @@ vec3 UniformSampleOneLight(int shaderType, float Density, int ch, in vec3 Wo, in
   
 }    
 
-bool SampleDistanceRM(inout CRay R, inout uvec2 seed, out vec3 Ps)
+bool SampleDistanceRM(inout Ray R, inout uvec2 seed, out vec3 Ps)
 {
   float MinT;
   float MaxT;
 
   if (!IntersectBox(R, MinT, MaxT))
     return false;
-//return true;
+
   MinT = max(MinT, R.m_MinT);
   MaxT = min(MaxT, R.m_MaxT);
 
@@ -1002,22 +998,22 @@ vec4 CalculateRadiance(inout uvec2 seed) {
   float r = rand(seed);
   //return vec4(r,0,0,1);
 
-  vec3 Lv = SPEC_BLACK, Li = SPEC_BLACK;
+  vec3 Lv = BLACK, Li = BLACK;
 
-  CRay Re = CRay(vec3(0,0,0), vec3(0,0,1), 0.0, 1500000.0);
+  //Ray Re = Ray(vec3(0,0,0), vec3(0,0,1), 0.0, 1500000.0);
   
   vec2 UV = vUv*uResolution + vec2(rand(seed), rand(seed));
 
-  GenerateRay(gCamera, UV, vec2(rand(seed), rand(seed)), Re.m_O, Re.m_D);
+  Ray Re = GenerateCameraRay(gCamera, UV, vec2(rand(seed), rand(seed)));
   
   //return vec4(vUv, 0.0, 1.0);
   //return vec4(0.5*(Re.m_D + 1.0), 1.0);
   //return vec4(Re.m_D, 1.0);
 
-  Re.m_MinT = 0.0f; 
-  Re.m_MaxT = 1500000.0f;
+  //Re.m_MinT = 0.0f; 
+  //Re.m_MaxT = 1500000.0f;
 
-  vec3 Pe=vec3(0,0,0), Pl=vec3(0,0,0);
+  vec3 Pe = vec3(0,0,0), Pl = vec3(0,0,0);
   float lpdf = 0.0;
   
   // find point Pe along ray Re
@@ -1028,7 +1024,7 @@ vec4 CalculateRadiance(inout uvec2 seed) {
 
     // is there a light between Re.m_O and Pe? (ray's maxT is distance to Pe)
    // (test to see if area light was hit before volume.)
-    int i = NearestLight(CRay(Re.m_O, Re.m_D, 0.0f, length(Pe - Re.m_O)), Li, Pl, lpdf);
+    int i = NearestLight(Ray(Re.m_O, Re.m_D, 0.0f, length(Pe - Re.m_O)), Li, Pl, lpdf);
     if (i > -1)
     {
       // set sample pixel value in frame estimate (prior to accumulation)
@@ -1086,7 +1082,7 @@ vec4 CalculateRadiance(inout uvec2 seed) {
     // background color:
     // set Lv to a selected color based on environment light source?
 //    if (uShowLights > 0.0) {
-//      int n = NearestLight(CRay(Re.m_O, Re.m_D, 0.0f, 1000000.0f), Li, Pl, lpdf);
+//      int n = NearestLight(Ray(Re.m_O, Re.m_D, 0.0f, 1000000.0f), Li, Pl, lpdf);
 //      if (n > -1)
 //        Lv = Li;  
 //    }
@@ -1104,7 +1100,6 @@ vec4 CumulativeMovingAverage(vec4 A, vec4 Ax, float N)
 {
    return A + ((Ax - A) / max((N), 1.0f));
 }
-
 
 void main()
 {
@@ -1167,55 +1162,55 @@ export let pathTracingUniforms = {
     gLights: {
       value: [
         {
-          m_Theta: 0.0,
-          m_Phi: 0.0,
-          m_Width: 10.0,
-          m_InvWidth: 0.1,
-          m_HalfWidth: 5.0,
-          m_InvHalfWidth: 0.2,
-          m_Height: 10.0,
-          m_InvHeight: 0.1,
-          m_HalfHeight: 5.0,
-          m_InvHalfHeight: 0.2,
-          m_Distance: 10.0,
-          m_SkyRadius: 1000.0,
+          m_theta: 0.0,
+          m_phi: 0.0,
+          m_width: 10.0,
+          m_invWidth: 0.1,
+          m_halfWidth: 5.0,
+          m_invHalfWidth: 0.2,
+          m_height: 10.0,
+          m_invHeight: 0.1,
+          m_halfHeight: 5.0,
+          m_invHalfHeight: 0.2,
+          m_distance: 10.0,
+          m_skyRadius: 1000.0,
           m_P: new THREE.Vector3(),
-          m_Target: new THREE.Vector3(),
+          m_target: new THREE.Vector3(),
           m_N: new THREE.Vector3(),
           m_U: new THREE.Vector3(),
           m_V: new THREE.Vector3(),
-          m_Area: 100.0,
-          m_AreaPdf: 0.01, // 1./area
-          m_Color: new THREE.Vector3(1,1,1),
-          m_ColorTop: new THREE.Vector3(1,0,0),
-          m_ColorMiddle: new THREE.Vector3(1,1,1),
-          m_ColorBottom: new THREE.Vector3(0,0,1),
+          m_area: 100.0,
+          m_areaPdf: 0.01, // 1./area
+          m_color: new THREE.Vector3(1,1,1),
+          m_colorTop: new THREE.Vector3(1,0,0),
+          m_colorMiddle: new THREE.Vector3(1,1,1),
+          m_colorBottom: new THREE.Vector3(0,0,1),
           m_T: 1 // sky light
         },
         {
-          m_Theta: 0.0,
-          m_Phi: 0.0,
-          m_Width: 1.0,
-          m_InvWidth: 0.1,
-          m_HalfWidth: 5.0,
-          m_InvHalfWidth: 0.2,
-          m_Height: 1.0,
-          m_InvHeight: 0.1,
-          m_HalfHeight: 5.0,
-          m_InvHalfHeight: 0.2,
-          m_Distance: 10.0,
-          m_SkyRadius: 1000.0,
+          m_theta: 0.0,
+          m_phi: 0.0,
+          m_width: 1.0,
+          m_invWidth: 0.1,
+          m_halfWidth: 5.0,
+          m_invHalfWidth: 0.2,
+          m_height: 1.0,
+          m_invHeight: 0.1,
+          m_halfHeight: 5.0,
+          m_invHalfHeight: 0.2,
+          m_distance: 10.0,
+          m_skyRadius: 1000.0,
           m_P: new THREE.Vector3(),
-          m_Target: new THREE.Vector3(),
+          m_target: new THREE.Vector3(),
           m_N: new THREE.Vector3(),
           m_U: new THREE.Vector3(),
           m_V: new THREE.Vector3(),
-          m_Area: 100.0,
-          m_AreaPdf: 0.01, // 1/area
-          m_Color: new THREE.Vector3(1,1,1),
-          m_ColorTop: new THREE.Vector3(1,0,0),
-          m_ColorMiddle: new THREE.Vector3(1,1,1),
-          m_ColorBottom: new THREE.Vector3(0,0,1),
+          m_area: 100.0,
+          m_areaPdf: 0.01, // 1/area
+          m_color: new THREE.Vector3(1,1,1),
+          m_colorTop: new THREE.Vector3(1,0,0),
+          m_colorMiddle: new THREE.Vector3(1,1,1),
+          m_colorBottom: new THREE.Vector3(0,0,1),
           m_T: 0 // area light
         }
       ]
