@@ -35,12 +35,12 @@ in vec2 vUv;
 out vec4 out_FragColor;
 
 struct Camera {
-  vec3 m_From;
+  vec3 m_from;
   vec3 m_U, m_V, m_N;
-  vec4 m_Screen;  // left, right, bottom, top
-  vec2 m_InvScreen;  // 1/w, 1/h
-  float m_FocalDistance;
-  float m_ApertureSize;
+  vec4 m_screen;  // left, right, bottom, top
+  vec2 m_invScreen;  // 1/w, 1/h
+  float m_focalDistance;
+  float m_apertureSize;
 };
 
 uniform Camera gCamera;
@@ -238,21 +238,21 @@ Ray GenerateCameraRay(in Camera cam, in vec2 Pixel, in vec2 ApertureRnd)
 {
   vec2 ScreenPoint;
 
-  ScreenPoint.x = cam.m_Screen.x + (cam.m_InvScreen.x * Pixel.x);
-  ScreenPoint.y = cam.m_Screen.z + (cam.m_InvScreen.y * Pixel.y);
+  ScreenPoint.x = cam.m_screen.x + (cam.m_invScreen.x * Pixel.x);
+  ScreenPoint.y = cam.m_screen.z + (cam.m_invScreen.y * Pixel.y);
 
-  vec3 RayO = cam.m_From;
+  vec3 RayO = cam.m_from;
   // negating ScreenPoint.y flips the up/down direction. depends on whether you want pixel 0 at top or bottom
-  // we could also have flipped m_Screen and m_InvScreen, or cam.m_V?
+  // we could also have flipped m_screen and m_invScreen, or cam.m_V?
   vec3 RayD = normalize(cam.m_N + (ScreenPoint.x * cam.m_U) + (-ScreenPoint.y * cam.m_V));
 
-  if (cam.m_ApertureSize != 0.0f)
+  if (cam.m_apertureSize != 0.0f)
   {
-    vec2 LensUV = cam.m_ApertureSize * getConcentricDiskSample(ApertureRnd);
+    vec2 LensUV = cam.m_apertureSize * getConcentricDiskSample(ApertureRnd);
 
     vec3 LI = cam.m_U * LensUV.x + cam.m_V * LensUV.y;
     RayO += LI;
-    RayD = normalize((RayD * cam.m_FocalDistance) - LI);
+    RayD = normalize((RayD * cam.m_focalDistance) - LI);
   }
 
   return newRay(RayO, RayD);
@@ -1149,14 +1149,14 @@ export let pathTracingUniforms = {
     gCamera: {
       value: {
         // Camera struct
-        m_From: new THREE.Vector3(),
+        m_from: new THREE.Vector3(),
         m_U: new THREE.Vector3(),
         m_V: new THREE.Vector3(),
         m_N: new THREE.Vector3(),
-        m_Screen: new THREE.Vector4(),  // left, right, bottom, top
-        m_InvScreen: new THREE.Vector2(),  // 1/w, 1/h
-        m_FocalDistance: 0.0,
-        m_ApertureSize: 0.0
+        m_screen: new THREE.Vector4(),  // left, right, bottom, top
+        m_invScreen: new THREE.Vector2(),  // 1/w, 1/h
+        m_focalDistance: 0.0,
+        m_apertureSize: 0.0
       }
     },
     gLights: {

@@ -61,7 +61,7 @@ export class AICSview3d_PT {
     this.canvas3d.perspectiveCamera.updateMatrixWorld(true);			
 
     const cam = this.canvas3d.perspectiveCamera;
-    this.pathTracingUniforms.gCamera.value.m_From.copy(cam.position);
+    this.pathTracingUniforms.gCamera.value.m_from.copy(cam.position);
     this.pathTracingUniforms.gCamera.value.m_N.subVectors(this.canvas3d.controls.target, cam.position).normalize();
     this.pathTracingUniforms.gCamera.value.m_U.crossVectors(this.pathTracingUniforms.gCamera.value.m_N, cam.up).normalize();
     this.pathTracingUniforms.gCamera.value.m_V.crossVectors(this.pathTracingUniforms.gCamera.value.m_U, this.pathTracingUniforms.gCamera.value.m_N).normalize();
@@ -69,15 +69,15 @@ export class AICSview3d_PT {
     // the choice of y = scale/aspect or x = scale*aspect is made here to match up with the other raymarch volume
     const Scale = Math.tan((cam.fov * 3.14159265/180.0));
     const aspect = this.pathTracingUniforms.uResolution.value.x/this.pathTracingUniforms.uResolution.value.y;
-    this.pathTracingUniforms.gCamera.value.m_Screen.set(
+    this.pathTracingUniforms.gCamera.value.m_screen.set(
       -Scale * aspect,
       Scale * aspect,
       // the "0" Y pixel will be at +Scale.
       Scale,
       -Scale
     );
-    const scr = this.pathTracingUniforms.gCamera.value.m_Screen;
-    this.pathTracingUniforms.gCamera.value.m_InvScreen.set(
+    const scr = this.pathTracingUniforms.gCamera.value.m_screen;
+    this.pathTracingUniforms.gCamera.value.m_invScreen.set(
       // the amount to increment for each pixel
       (scr.y - scr.x) / this.pathTracingUniforms.uResolution.value.x,
       (scr.w - scr.z) / this.pathTracingUniforms.uResolution.value.y
@@ -349,8 +349,8 @@ export class AICSview3d_PT {
   }
   
   updateCamera(fov, focalDistance, apertureSize) {
-    this.pathTracingUniforms.gCamera.value.m_ApertureSize = apertureSize;
-    this.pathTracingUniforms.gCamera.value.m_FocalDistance = focalDistance;
+    this.pathTracingUniforms.gCamera.value.m_apertureSize = apertureSize;
+    this.pathTracingUniforms.gCamera.value.m_focalDistance = focalDistance;
     const cam = this.canvas3d.perspectiveCamera;
     cam.fov = fov;
 
