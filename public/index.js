@@ -189,7 +189,14 @@ function showChannelUI(img) {
             window: 1.0,
             level: 0.5,
             roughness: 0.0,
-            enabled: true
+            enabled: true,
+            // this doesn't give good results currently but is an example of a per-channel button callback
+            autoIJ: (function(j) {
+                return function() {
+                    view3D.image.volume.channels[j].lutGenerator_auto2();
+                    view3D.updateLuts();
+                }
+            })(i)
         });
         var f = gui.addFolder("Channel " + myState.infoObj.channel_names[i]);
         myState.channelFolderNames.push("Channel " + myState.infoObj.channel_names[i]);
@@ -248,6 +255,7 @@ function showChannelUI(img) {
                     view3D.updateLuts();
                 }
             }(i));
+        //f.add(myState.infoObj.channelGui[i], 'autoIJ');
         f.add(myState.infoObj.channelGui[i], "roughness").max(100.0).min(0.0).onChange(function (j) {
                 return function (value) {
                     view3D.image.updateChannelMaterial(
