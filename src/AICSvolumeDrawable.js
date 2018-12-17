@@ -1,19 +1,7 @@
-import AICSchannelData from './AICSchannelData.js';
 import AICSvolume from './AICSvolume.js';
-import FileSaver from './FileSaver.js';
 import { getColorByChannelIndex } from './constants/colors.js';
-import { defaultMaterialSettings } from './constants/materials.js';
-import { 
-  rayMarchingVertexShaderSrc, 
-  rayMarchingFragmentShaderSrc, 
-  rayMarchingShaderUniforms 
-} from './constants/volumeRayMarchShader.js';
-import './MarchingCubes.js';
-import NaiveSurfaceNets from './NaiveSurfaceNets.js';
-import './STLBinaryExporter.js';
-
-import 'three/examples/js/exporters/GLTFExporter.js';
-
+import MeshVolume from './meshVolume.js';
+import RayMarchedAtlasVolume from './rayMarchedAtlasVolume.js';
 
 /**
  * A renderable multichannel volume image with 8-bits per channel intensity values.
@@ -24,7 +12,7 @@ function AICSvolumeDrawable(imageInfo) {
   
   // THE VOLUME DATA
   this.volume = new AICSvolume(imageInfo);
-  
+
   this.onChannelDataReadyCallback = null;
 
   this.channel_colors = this.volume.channel_colors_default.slice();
@@ -50,43 +38,18 @@ function AICSvolumeDrawable(imageInfo) {
 
   this.sceneRoot = new THREE.Object3D();//create an empty container
 
-  this.cube = new THREE.BoxGeometry(1.0, 1.0, 1.0);
-  this.cubeMesh = new THREE.Mesh(this.cube);
-  this.cubeMesh.name = "Volume";
+  this.rayMarchedAtlasVolume = new RayMarchedAtlasVolume(this.volume);
 
-  this.meshRoot = new THREE.Object3D();//create an empty container
-  this.meshRoot.name = "Mesh Surface Container";
+  this.meshVolume = new MeshVolume(this.volume);
 
   // draw meshes first, and volume last, for blending and depth test reasons
-  this.sceneRoot.add(this.meshRoot);
-  this.sceneRoot.add(this.cubeMesh);
-
-  this.meshrep = [];
+  this.sceneRoot.add(this.meshVolume.get3dObject());
+  this.sceneRoot.add(this.rayMarchedAtlasVolume.get3dObject());
 
   this.bounds = {
     bmin: new THREE.Vector3(-0.5, -0.5, -0.5),
     bmax: new THREE.Vector3(0.5, 0.5, 0.5)
   };
-
-  this.uniforms = rayMarchingShaderUniforms;
-
-  // shader,vtx and frag.
-  var vtxsrc = rayMarchingVertexShaderSrc;
-  var fgmtsrc = rayMarchingFragmentShaderSrc;
-
-  var threeMaterial = new THREE.ShaderMaterial({
-    uniforms: this.uniforms,
-    vertexShader: vtxsrc,
-    fragmentShader: fgmtsrc,
-    transparent: true,
-    depthTest: false
-  });
-  this.cubeMesh.material = threeMaterial;
-
-
-  this.setUniform("ATLAS_X", this.volume.imageInfo.cols);
-  this.setUniform("ATLAS_Y", this.volume.imageInfo.rows);
-  this.setUniform("SLICES", this.volume.z);
 
   var cx = 0.0;
   var cz = 0.0;
@@ -95,12 +58,6 @@ function AICSvolumeDrawable(imageInfo) {
   this.maxSteps = 256;
 
   this.setScale(this.volume.scale);
-
-  this.channelData = new AICSchannelData(
-    this.volume.imageInfo.atlas_width, 
-    this.volume.imageInfo.atlas_height, 
-    this.redraw
-  );
 
   // // create one intensity lut per channel
   // this.lut = new Array(this.volume.num_channels);
@@ -149,43 +106,22 @@ AICSvolumeDrawable.prototype.setScale = function(scale) {
 
   this.currentScale = scale.clone();
 
-  this.meshRoot.scale.copy(new THREE.Vector3(0.5 * scale.x,
-    0.5 * scale.y,
-    0.5 * scale.z));
+  this.meshVolume.setScale(scale);
 
-  this.cubeMesh.scale.copy(new THREE.Vector3(scale.x,
-    scale.y,
-    scale.z));
-
-
-  this.cubeMesh.updateMatrixWorld(true);
-  var mi = new THREE.Matrix4();
-  mi.getInverse(this.cubeMesh.matrixWorld);
-  this.setUniformNoRerender('inverseModelViewMatrix', mi, true, true);
+  this.rayMarchedAtlasVolume.setScale(scale);
 };
 
 AICSvolumeDrawable.prototype.setUniform = function(name, value) {
-  this.setUniformNoRerender(name, value);
+  this.rayMarchedAtlasVolume.setUniform(name, value);
 };
 
 AICSvolumeDrawable.prototype.setUniformNoRerender = function(name, value) {
-  if (!this.uniforms[name]) {
-    return;
-  }
-  this.uniforms[name].value = value;
-  //this.uniforms[name].needsUpdate = true;
-  //this.cubeMesh.material.uniforms[name].value = value;
-  this.cubeMesh.material.needsUpdate = true;
-};
-
-AICSvolumeDrawable.prototype.initResolution = function(canvas) {
-  var res = new THREE.Vector2(canvas.getWidth(), canvas.getHeight());
-  this.initUniform('iResolution', "v2", res);
+  this.rayMarchedAtlasVolume.setUniform(name, value);
 };
 
 AICSvolumeDrawable.prototype.setResolution = function(viewObj) {
-  var res = new THREE.Vector2(viewObj.getWidth(), viewObj.getHeight());
-  this.setUniform('iResolution', res);
+  this.rayMarchedAtlasVolume.setResolution(viewObj);
+  this.meshVolume.setResolution(viewObj);
 };
 
 // TODO handle this differently in 3D mode vs 2D mode?
@@ -200,134 +136,33 @@ AICSvolumeDrawable.prototype.setAxisClip = function(axis, minval, maxval, isOrth
   this.bounds.bmax[axis] = maxval;
   this.bounds.bmin[axis] = minval;
 
-  if (isOrthoAxis) {
-    const thicknessPct = maxval - minval;
-    this.setUniformNoRerender('orthoThickness', thicknessPct);
-  }
-
-  this.setUniformNoRerender('AABB_CLIP_MIN', this.bounds.bmin);
-  this.setUniform('AABB_CLIP_MAX', this.bounds.bmax);
+  this.rayMarchedAtlasVolume.setAxisClip(axis, minval, maxval, isOrthoAxis);
+  this.meshVolume.setAxisClip(axis, minval, maxval, isOrthoAxis);
 };
 
 AICSvolumeDrawable.prototype.setOrthoThickness = function(value) {
-  this.setUniformNoRerender('orthoThickness', value);
+  this.rayMarchedAtlasVolume.setOrthoThickness(value);
+  this.meshVolume.setOrthoThickness(value);  
 };
 
 AICSvolumeDrawable.prototype.onAnimate = function(canvas) {
-  this.cubeMesh.updateMatrixWorld(true);
-
   // TODO: this is inefficient, as this work is duplicated by threejs.
+  // we need camera matrix up to date before giving the 3d objects a chance to use it.
   canvas.camera.updateMatrixWorld(true);
   canvas.camera.matrixWorldInverse.getInverse( canvas.camera.matrixWorld );
-
-  var mvm = new THREE.Matrix4();
-  mvm.multiplyMatrices(canvas.camera.matrixWorldInverse, this.cubeMesh.matrixWorld);
-  var mi = new THREE.Matrix4();
-  mi.getInverse(mvm);
-
-  this.setUniform('inverseModelViewMatrix', mi, true, true);
 
   const isVR = canvas.isVR();
   if (isVR) {
     // raise volume drawable to about 1 meter.
     this.sceneRoot.position.y = 1.0;
-    
-    this.cubeMesh.material.depthWrite = true;
-    this.cubeMesh.material.transparent = false;
-    this.cubeMesh.material.depthTest = true;
   }
   else {
     this.sceneRoot.position.y = 0.0;
-    this.cubeMesh.material.depthWrite = false;
-    this.cubeMesh.material.transparent = true;
-    this.cubeMesh.material.depthTest = false;
-  }
-};
-
-AICSvolumeDrawable.prototype.updateMeshColors = function() {
-  for (var i = 0; i < this.num_channels; ++i) {
-    if (this.meshrep[i]) {
-      var rgb = this.channel_colors[i];
-      const c = (rgb[0] << 16) | (rgb[1] << 8) | (rgb[2]);
-
-      this.meshrep[i].traverse(function(child) {
-        if (child instanceof THREE.Mesh) {
-          child.material.color = new THREE.Color(c);
-        }
-      });
-      if (this.meshrep[i].material) {
-        this.meshrep[i].material.color = new THREE.Color(c);
-      }
-    }
-  }
-};
-
-AICSvolumeDrawable.prototype.createMaterialForChannel = function(channelIndex, alpha, transp) {
-  let rgb = this.channel_colors[channelIndex];
-  const col = (rgb[0] << 16) | (rgb[1] << 8) | (rgb[2]);
-  const material = new THREE.MeshPhongMaterial({
-    color: new THREE.Color(col),
-    shininess: defaultMaterialSettings.shininess,
-    specular: new THREE.Color(defaultMaterialSettings.specularColor),
-    opacity: alpha,
-    transparent: (alpha < 0.9)
-  });
-  return material;
-};
-
-AICSvolumeDrawable.prototype.generateIsosurfaceGeometry = function(channelIndex, isovalue) {
-  if (!this.volume) {
-    return [];
-  }
-  const volumedata = this.volume.channels[channelIndex].volumeData;
-
-  const marchingcubes = true;
-
-  if (marchingcubes) {
-    let effect = new THREE.MarchingCubes(
-      [this.imageInfo.tile_width, this.imageInfo.tile_height, this.z],
-      null,
-      false, false, true,
-      volumedata
-    );
-    effect.position.set( 0, 0, 0 );
-    effect.scale.set( 0.5 * this.scale.x, 0.5 * this.scale.y, 0.5 * this.scale.z );
-    effect.isovalue = isovalue;
-    var geometries = effect.generateGeometry();
-    // TODO: weld vertices and recompute normals.  MarchingCubes results in excessive coincident verts
-    // for (var i = 0; i < geometries.length; ++i) {
-    //   var g = new THREE.Geometry().fromBufferGeometry(geometries[i]);
-    //   g.mergeVertices();
-    //   geometries[i] = new THREE.BufferGeometry().fromGeometry(g);
-    //   geometries[i].computeVertexNormals();
-    // }
-    return geometries;
-  }
-  else {
-    var result = NaiveSurfaceNets.surfaceNets(
-      volumedata,
-      [this.imageInfo.tile_width, this.imageInfo.tile_height, this.z],
-      isovalue
-    );
-    return NaiveSurfaceNets.constructTHREEGeometry(result);
   }
 
-};
+  this.rayMarchedAtlasVolume.doRender(canvas);
+  this.meshVolume.doRender(canvas);
 
-
-AICSvolumeDrawable.prototype.createMeshForChannel = function(channelIndex, isovalue, alpha, transp) {
-  const geometries = this.generateIsosurfaceGeometry(channelIndex, isovalue);
-  const material = this.createMaterialForChannel(channelIndex, alpha, transp);
-
-  let theObject = new THREE.Object3D();
-  theObject.name = "Channel"+channelIndex;
-  theObject.userData = {isovalue:isovalue};
-  // proper scaling will be done in parent object
-  for (var i = 0; i < geometries.length; ++i) {
-    let mesh = new THREE.Mesh( geometries[i], material );
-    theObject.add(mesh);
-  }
-  return theObject;
 };
 
 /**
@@ -336,31 +171,7 @@ AICSvolumeDrawable.prototype.createMeshForChannel = function(channelIndex, isova
  * @param {number} value 
  */
 AICSvolumeDrawable.prototype.updateIsovalue = function(channel, value) {
-  if (!this.meshrep[channel]) {
-    return;
-  }
-  if (this.meshrep[channel].userData.isovalue === value) {
-    return;
-  }
-
-  // find the current isosurface opacity.
-  let opacity = 1;
-  if (this.meshrep[channel].material) {
-    opacity = this.meshrep[channel].material.opacity;
-  }
-  else {
-    this.meshrep[channel].traverse(function(child) {
-      if (child instanceof THREE.Mesh) {
-        opacity = child.material.opacity;
-      }
-    });
-  }
-
-  this.destroyIsosurface(channel);
-
-  this.meshrep[channel] = this.createMeshForChannel(channel, value, opacity, false);
-
-  this.meshRoot.add(this.meshrep[channel]);
+  this.meshVolume.updateIsovalue(channel, value);
 };
 
 /**
@@ -369,10 +180,7 @@ AICSvolumeDrawable.prototype.updateIsovalue = function(channel, value) {
  * @return {number} the isovalue for this channel or undefined if this channel does not have an isosurface created
  */
 AICSvolumeDrawable.prototype.getIsovalue = function(channel) {
-  if (!this.meshrep[channel]) {
-    return undefined;
-  }
-  return this.meshrep[channel].userData.isovalue;
+  return this.meshVolume.getIsovalue(channel);
 };
 
 /**
@@ -381,22 +189,7 @@ AICSvolumeDrawable.prototype.getIsovalue = function(channel) {
  * @param {number} value Opacity
  */
 AICSvolumeDrawable.prototype.updateOpacity = function(channel, value) {
-  if (!this.meshrep[channel]) {
-    return;
-  }
-
-  this.meshrep[channel].traverse(function(child) {
-    if (child instanceof THREE.Mesh) {
-      child.material.opacity = value;
-      child.material.transparent = (value < 0.9);
-      //child.material.depthWrite = !child.material.transparent;
-    }
-  });
-  if (this.meshrep[channel].material) {
-    this.meshrep[channel].material.opacity = value;
-    this.meshrep[channel].material.transparent = (value < 0.9);
-    //this.meshrep[channel].material.depthWrite = !this.meshrep[channel].material.transparent;
-  }
+  this.meshVolume.updateOpacity(channel, value);
 };
 
 /**
@@ -405,7 +198,7 @@ AICSvolumeDrawable.prototype.updateOpacity = function(channel, value) {
  * @return true if there is currently a mesh isosurface for this channel
  */
 AICSvolumeDrawable.prototype.hasIsosurface = function(channel) {
-  return (!!this.meshrep[channel]);
+  return this.meshVolume.hasIsosurface(channel);
 };
 
 /**
@@ -416,35 +209,7 @@ AICSvolumeDrawable.prototype.hasIsosurface = function(channel) {
  * @param {boolean=} transp render surface as transparent object
  */
 AICSvolumeDrawable.prototype.createIsosurface = function(channel, value, alpha, transp) {
-  if (!this.meshrep[channel]) {
-    if (alpha === undefined) {
-      alpha = 1.0;
-    }
-    if (transp === undefined) {
-      transp = (alpha < 0.9);
-    }
-    this.meshrep[channel] = this.createMeshForChannel(channel, value, alpha, transp);
-    this.meshRoot.add(this.meshrep[channel]);
-  }
-};
-
-AICSvolumeDrawable.prototype.destroyIsosurface = function(channel) {
-  if (this.meshrep[channel]) {
-    this.meshRoot.remove(this.meshrep[channel]);
-    this.meshrep[channel].traverse(function(child) {
-      if (child instanceof THREE.Mesh) {
-        child.material.dispose();
-        child.geometry.dispose();
-      }
-    });
-    if (this.meshrep[channel].geometry) {
-      this.meshrep[channel].geometry.dispose();
-    }
-    if (this.meshrep[channel].material) {
-      this.meshrep[channel].material.dispose();
-    }
-    this.meshrep[channel] = null;
-  }
+  this.meshVolume.createIsosurface(channel, value, alpha, transp);
 };
 
 AICSvolumeDrawable.prototype.fuse = function() {
@@ -455,13 +220,7 @@ AICSvolumeDrawable.prototype.fuse = function() {
   //	return;
   //}
 
-  //'m' for max or 'a' for avg
-  var fusionType = 'm';
-  this.channelData.fuse(this.fusion, fusionType, this.volume.channels);
-
-  // update to fused texture
-  this.setUniform('textureAtlas', this.channelData.fusedTexture);
-  this.setUniform('textureAtlasMask', this.channelData.maskTexture);
+  this.rayMarchedAtlasVolume.fuse(this.fusion, this.volume.channels);
 
   if (this.redraw) {
     this.redraw();
@@ -497,16 +256,8 @@ AICSvolumeDrawable.prototype.setVoxelSize = function(values) {
 };
 
 AICSvolumeDrawable.prototype.cleanup = function() {
-  for (var i = 0; i < this.num_channels; ++i) {
-    this.destroyIsosurface(i);
-  }
-
-  this.cube.dispose();
-  this.cubeMesh.material.dispose();
-
-  this.channelData.cleanup();
-  this.channelData.fusedTexture.dispose();
-  this.channelData.maskTexture.dispose();
+  this.meshVolume.cleanup();
+  this.rayMarchedAtlasVolume.cleanup();
 };
 
 /**
@@ -521,19 +272,11 @@ AICSvolumeDrawable.prototype.getChannel = function(channelIndex) {
 };
 
 AICSvolumeDrawable.prototype.onChannelLoaded = function(batch) {
-  // tell the fuse workers that new channel data arrived
-  this.channelData.onChannelLoaded(batch, this.volume.channels);
-
+  this.rayMarchedAtlasVolume.onChannelData(batch);
   // any channels not yet loaded must just be set to 0 color for this fuse.
   this.fuse();
 
-  for (var j = 0; j < batch.length; ++j) {
-    var idx = batch[j];
-    // if an isosurface was created before the channel data arrived, we need to re-calculate it now.
-    if (this.meshrep[idx]) {
-      this.updateIsovalue(idx, this.getIsovalue(idx));
-    }
-  }
+  this.meshVolume.onChannelData(batch);
 
   // let the outside world have a chance
   if (this.onChannelDataReadyCallback) {
@@ -547,57 +290,7 @@ AICSvolumeDrawable.prototype.onChannelLoaded = function(batch) {
  * @param {string} type Either 'GLTF' or 'STL'
  */
 AICSvolumeDrawable.prototype.saveChannelIsosurface = function(channelIndex, type) {
-  if (!this.meshrep[channelIndex]) {
-    return;
-  }
-
-  if (type === "STL") {
-    this.exportSTL(this.meshrep[channelIndex], this.name+"_"+this.channel_names[channelIndex]);
-  }
-  else if (type === "GLTF") {
-    // temporarily set other meshreps to invisible
-    var prevviz = [];
-    for (var i = 0; i < this.meshrep.length; ++i) {
-      if (this.meshrep[i]) {
-          prevviz[i] = this.meshrep[i].visible;
-          this.meshrep[i].visible = (i === channelIndex);
-        }
-    }
-    this.exportGLTF(this.meshRoot, this.name+"_"+this.channel_names[channelIndex]);
-    for (var i = 0; i < this.meshrep.length; ++i) {
-      if (this.meshrep[i]) {
-        this.meshrep[i].visible = prevviz[i];
-      }
-    }
-  }
-};
-
-AICSvolumeDrawable.prototype.exportSTL = function( input, fname ) {
-  var ex = new THREE.STLBinaryExporter();
-  var output = ex.parse(input);
-  FileSaver.saveBinary(output.buffer, fname+'.stl');
-};
-
-// takes a scene or object or array of scenes or objects or both!
-AICSvolumeDrawable.prototype.exportGLTF = function( input, fname ) {
-  var gltfExporter = new THREE.GLTFExporter();
-  var options = {
-    // transforms as translate rotate scale?
-    trs: false,
-    onlyVisible: true,
-    truncateDrawRange: true,
-    binary: true,
-    forceIndices: false,
-    forcePowerOfTwoTextures: true
-  };
-  gltfExporter.parse( input, function( result ) {
-    if ( result instanceof ArrayBuffer ) {
-      FileSaver.saveArrayBuffer( result, fname + '.glb' );
-    } else {
-      var output = JSON.stringify( result, null, 2 );
-      FileSaver.saveString( output, fname + '.gltf' );
-    }
-  }, options );
+  this.meshVolume.saveChannelIsosurface(channelIndex, type, this.name);
 };
 
 /**
@@ -610,10 +303,10 @@ AICSvolumeDrawable.prototype.setVolumeChannelEnabled = function(channelIndex, en
   this.fusion[channelIndex].rgbColor = enabled ? this.channel_colors[channelIndex] : 0;
   // if all are nulled out, then hide the volume element from the scene.
   if (this.fusion.every((elem)=>(elem.rgbColor === 0))) {
-    this.cubeMesh.visible = false;
+    this.rayMarchedAtlasVolume.setVisible(false);
   }
   else {
-    this.cubeMesh.visible = true;
+    this.rayMarchedAtlasVolume.setVisible(true);
   }
 };
 
@@ -641,7 +334,7 @@ AICSvolumeDrawable.prototype.updateChannelColor = function(channelIndex, colorrg
     this.fusion[channelIndex].rgbColor = colorrgb;
     this.fuse();
   }
-  this.updateMeshColors();
+  this.meshVolume.updateMeshColors(this.channel_colors);
 };
 
 /**
@@ -668,19 +361,14 @@ AICSvolumeDrawable.prototype.updateChannelMaterial = function(channelIndex, colo
  * @param {boolean=} no_redraw Set to true to delay re-rendering. Otherwise ignore.
  */
 AICSvolumeDrawable.prototype.setDensity = function(density, no_redraw) {
-  if (no_redraw) {
-    this.setUniformNoRerender("DENSITY", density);
-  }
-  else {
-    this.setUniform("DENSITY", density);
-  }
+  this.rayMarchedAtlasVolume.setDensity(density);
 };
 
 /**
  * Get the global density of the volume data
  */
 AICSvolumeDrawable.prototype.getDensity = function() {
-  return this.uniforms["DENSITY"].value;
+  return this.rayMarchedAtlasVolume.getDensity();
 };
 
 /**
@@ -689,19 +377,14 @@ AICSvolumeDrawable.prototype.getDensity = function() {
  * @param {boolean=} no_redraw Set to true to delay re-rendering. Otherwise ignore.
  */
 AICSvolumeDrawable.prototype.setBrightness = function(brightness, no_redraw) {
-  if (no_redraw) {
-    this.setUniformNoRerender("BRIGHTNESS", brightness);
-  }
-  else {
-    this.setUniform("BRIGHTNESS", brightness);
-  }
+  this.rayMarchedAtlasVolume.setBrightness(brightness);
 };
 
 /**
  * Get the global brightness of the volume data
  */
 AICSvolumeDrawable.prototype.getBrightness = function() {
-  return this.uniforms["BRIGHTNESS"].value;
+  return this.rayMarchedAtlasVolume.getBrightness();
 };
 
 /**
@@ -720,7 +403,8 @@ AICSvolumeDrawable.prototype.appendEmptyChannel = function(name, color) {
     rgbColor: chcolor
   });
 
-  this.channelData.appendEmptyChannel(chname);
+  this.meshVolume.appendEmptyChannel(chname);
+  this.rayMarchedAtlasVolume.appendEmptyChannel(chname);
 
   return idx;
 };
@@ -733,7 +417,7 @@ AICSvolumeDrawable.prototype.setChannelAsMask = function(channelIndex) {
   if (!this.volume.channels[channelIndex] || !this.volume.channels[channelIndex].loaded) {
     return false;
   }
-  return this.channelData.setChannelAsMask(channelIndex, this.volume.channels[channelIndex]);
+  return this.rayMarchedAtlasVolume.setChannelAsMask(channelIndex);
 };
 
 /**

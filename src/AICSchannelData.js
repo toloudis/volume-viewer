@@ -49,6 +49,10 @@ AICSchannelData.prototype.cleanup = function() {
   }
   this.workers = [];
   this.workersCount = 0;
+
+  this.fusedTexture.dispose();
+  this.maskTexture.dispose();
+
 };
 
 AICSchannelData.prototype.setupWorkers = function() {
