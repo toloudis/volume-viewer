@@ -311,7 +311,8 @@ AICSvolumeDrawable.prototype.setVolumeChannelEnabled = function(channelIndex, en
 };
 
 /**
- * Is a the volume data for a channel being shown?
+ * Is volume data showing for this channel?
+ * @return {boolean} Is volume data visible for this channel?
  * @param {number} channelIndex 
  */
 AICSvolumeDrawable.prototype.isVolumeChannelEnabled = function(channelIndex) {

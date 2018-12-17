@@ -297,6 +297,14 @@ function loadImageData(jsondata, volumedata) {
             //     aimg.setChannelAsMask(5);
             //     aimg.setUniform('maskAlpha', 0.0);
             // }
+
+            if (jsondata.preset) {
+                let p = jsondata.preset;
+                if (p[channelIndex]) {
+                    aimg.volume.channels[channelIndex].lutGenerator_windowLevel(p[channelIndex][0], p[channelIndex][1]);
+                }
+            }
+    
         });
     }
 

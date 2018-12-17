@@ -160,15 +160,6 @@ export class AICSview3d_PT {
         if (volume.loaded && !that.volumeTexture) {
           that.image.onChannelDataReadyCallback = null;
 
-          if (volume.imageInfo.preset) {
-            let p = volume.imageInfo.preset;
-            for (var i = 0; i < that.image.volume.num_channels; ++i) {
-              if (p[i]) {
-                volume.channels[i].lutGenerator_windowLevel(p[i][0], p[i][1]);
-              }
-            }
-          }
-
           that.pathTracingUniforms.g_nChannels.value = 4;
           that.viewChannels = [0, 1, 2, 3];
 
@@ -259,7 +250,7 @@ export class AICSview3d_PT {
     var NC = this.image.volume.num_channels;
     const maxch = 4;
     for (let i = 0; i < NC && activeChannel < maxch; ++i) {
-      if ((this.image.fusion[i].rgbColor !== 0)) {
+      if (this.image.isVolumeChannelEnabled(i)) {
         ch[activeChannel] = i;
         activeChannel++;
       }

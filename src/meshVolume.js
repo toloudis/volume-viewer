@@ -61,6 +61,9 @@ export default class MeshVolume {
     setResolution(viewObj) {
     }
 
+    setOrthoThickness(value) {
+    }
+
     //////////////////////////////
 
     updateMeshColors(channel_colors) {
