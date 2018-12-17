@@ -339,6 +339,15 @@ AICSvolumeDrawable.prototype.updateChannelColor = function(channelIndex, colorrg
 };
 
 /**
+ * Get the color for a channel
+ * @return {Array.<number>} The color as array of [r,g,b]
+ * @param {number} channelIndex 
+ */
+AICSvolumeDrawable.prototype.getChannelColor = function(channelIndex) {
+  return this.channel_colors[channelIndex];
+};
+
+/**
  * Set the material for a channel
  * @param {number} channelIndex 
  * @param {Array.<number>} colorrgb [r,g,b]

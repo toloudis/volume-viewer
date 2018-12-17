@@ -288,7 +288,7 @@ export class AICSview3d_PT {
       }
 
       // set colors.
-      this.pathTracingUniforms.g_Diffuse.value[i].fromArray(this.image.fusion[ch].rgbColor).multiplyScalar(1.0/255.0);
+      this.pathTracingUniforms.g_Diffuse.value[i].fromArray(this.image.getChannelColor(ch)).multiplyScalar(1.0/255.0);
     }
     // defaults to rgba and unsignedbytetype so dont need to supply format this time.
     this.volumeTexture.image.data.set(data);
@@ -311,7 +311,7 @@ export class AICSview3d_PT {
     for (let c = 0; c < this.viewChannels.length; ++c) {
        let i = this.viewChannels[c];
        if (i > -1) {
-        this.pathTracingUniforms.g_Diffuse.value[c] = new THREE.Vector3().fromArray(this.image.fusion[i].rgbColor).multiplyScalar(1.0/255.0);
+        this.pathTracingUniforms.g_Diffuse.value[c] = new THREE.Vector3().fromArray(this.image.getChannelColor(i)).multiplyScalar(1.0/255.0);
         this.pathTracingUniforms.g_Specular.value[c] = new THREE.Vector3().fromArray(this.image.specular[i]).multiplyScalar(1.0/255.0);
         this.pathTracingUniforms.g_Emissive.value[c] = new THREE.Vector3().fromArray(this.image.emissive[i]).multiplyScalar(1.0/255.0);
         this.pathTracingUniforms.g_Roughness.value[c] = this.image.roughness[i];
