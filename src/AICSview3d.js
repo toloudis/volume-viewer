@@ -9,7 +9,8 @@ export class AICSview3d {
    * @param {HTMLElement} parentElement the 3d display will try to fill the parent element.
    */
   constructor(parentElement) {
-    this.canvas3d = new AICSthreeJsPanel(parentElement);
+    this.canvas3d = new AICSthreeJsPanel(parentElement, true);
+    //this.canvas3d = new AICSthreeJsPanel(parentElement);
     this.redraw = this.redraw.bind(this);
     this.scene = null;
     this.backgroundColor = 0x000000;
@@ -42,6 +43,7 @@ export class AICSview3d {
 
   destroyImage() {
     if (this.image) {
+      this.canvas3d.removeControlHandlers();
       this.canvas3d.onLeaveVR();
       this.canvas3d.onEnterVRCallback = null;
       this.canvas3d.onLeaveVRCallback = null;
@@ -73,6 +75,8 @@ export class AICSview3d {
           that.image.setVolumeChannelEnabled(i, (i<3));
         }
     };
+
+    this.canvas3d.setControlHandlers(this.image);
 
     this.canvas3d.animate_funcs.push(this.preRender.bind(this));
     this.canvas3d.animate_funcs.push(img.onAnimate.bind(img));
@@ -163,6 +167,15 @@ export class AICSview3d {
    */
   setAutoRotate(autorotate) {
     this.canvas3d.setAutoRotate(autorotate);
+
+    if (!pathtrace) {
+      if (autorotate) {
+        this.image.onStartControls();
+      }
+      else {
+        this.image.onEndControls();
+      }  
+    }
   };
 
   /**
@@ -189,33 +202,43 @@ export class AICSview3d {
   };
 
   updateShadingMethod(isbrdf) {
-
+    this.image.updateShadingMethod(isbrdf);
   };
 
   updateShowLights(showlights) {
 
-  };
+  }
 
   updateActiveChannels() {
     this.image.fuse();
-  };
+  }
 
   updateLuts() {
-    this.image.fuse();
-  };
+    this.image.updateLuts();
+  }
 
   updateMaterial() {
-    this.image.fuse();
-  };
+    this.image.updateMaterial();
+  }
   
   updateExposure(e) {
-  };
+    this.image.setBrightness(e);
+  }
 
   updateCamera(fov, focalDistance, apertureSize) {
     const cam = this.canvas3d.perspectiveCamera;
     cam.fov = fov;
     this.canvas3d.fov = fov;
     cam.updateProjectionMatrix();
+
+    this.image.onCameraChanged(fov, focalDistance, apertureSize);
   }
 
+  updateClipRegion(xmin, xmax, ymin, ymax, zmin, zmax) {
+    this.image.updateClipRegion(xmin, xmax, ymin, ymax, zmin, zmax);
+  }
+
+  updateLights(state) {
+    this.image.updateLights(state);
+  }
 }

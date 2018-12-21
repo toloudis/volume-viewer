@@ -49,13 +49,9 @@ struct Light {
   float   m_theta;
   float   m_phi;
   float   m_width;
-  float   m_invWidth;
   float   m_halfWidth;
-  float   m_invHalfWidth;
   float   m_height;
-  float   m_invHeight;
   float   m_halfHeight;
-  float   m_invHalfHeight;
   float   m_distance;
   float   m_skyRadius;
   vec3    m_P;
@@ -71,7 +67,7 @@ struct Light {
   vec3    m_colorBottom;
   int     m_T;
 };
-
+const int NUM_LIGHTS = 2;
 uniform Light gLights[2];
 
 uniform vec3 gClippedAaBbMin;
@@ -95,10 +91,10 @@ uniform sampler2D g_lutTexture[4];
 uniform vec4 g_intensityMax;
 uniform vec4 g_intensityMin;
 uniform float g_opacity[4];
-uniform vec3 g_Emissive[4];
-uniform vec3 g_Diffuse[4];
-uniform vec3 g_Specular[4];
-uniform float g_Roughness[4];
+uniform vec3 g_emissive[4];
+uniform vec3 g_diffuse[4];
+uniform vec3 g_specular[4];
+uniform float g_roughness[4];
 
 // compositing / progressive render
 uniform float uFrameCounter;
@@ -274,15 +270,21 @@ bool IntersectBox(in Ray R, out float pNearT, out float pFarT)
   return smallestMaxT > largestMinT;
 }
 
+// assume volume is centered at 0,0,0 so p spans -bounds to + bounds
+vec3 PtoVolumeTex(vec3 p) {
+  //return (p-gClippedAaBbMin)*gInvAaBbMax;
+  return p*gInvAaBbMax + vec3(0.5, 0.5, 0.5);
+}
+
 const float UINT8_MAX = 1.0;//255.0;
 float GetNormalizedIntensityMax4ch(in vec3 P, out int ch)
 {
-  vec4 intensity = UINT8_MAX * texture(volumeTexture, P * gInvAaBbMax);
+  vec4 intensity = UINT8_MAX * texture(volumeTexture, PtoVolumeTex(P));
 
   float maxIn = 0.0;
   ch = 0;
 
-  intensity = (intensity - g_intensityMin) / (g_intensityMax - g_intensityMin);
+  //intensity = (intensity - g_intensityMin) / (g_intensityMax - g_intensityMin);
   intensity.x = texture(g_lutTexture[0], vec2(intensity.x, 0.5)).x;
   intensity.y = texture(g_lutTexture[1], vec2(intensity.y, 0.5)).x;
   intensity.z = texture(g_lutTexture[2], vec2(intensity.z, 0.5)).x;
@@ -299,18 +301,18 @@ float GetNormalizedIntensityMax4ch(in vec3 P, out int ch)
 
 float GetNormalizedIntensity(in vec3 P, in int ch)
 {
-  float intensity = UINT8_MAX * texture(volumeTexture, P * gInvAaBbMax)[ch];
-  intensity = (intensity - g_intensityMin[ch]) / (g_intensityMax[ch] - g_intensityMin[ch]);
+  float intensity = UINT8_MAX * texture(volumeTexture, PtoVolumeTex(P))[ch];
+//  intensity = (intensity - g_intensityMin[ch]) / (g_intensityMax[ch] - g_intensityMin[ch]);
   intensity = texture(g_lutTexture[ch], vec2(intensity, 0.5)).x;
   return intensity;
 }
 
 float GetNormalizedIntensity4ch(vec3 P, int ch)
 {
-  vec4 intensity = UINT8_MAX * texture(volumeTexture, P * gInvAaBbMax);
+  vec4 intensity = UINT8_MAX * texture(volumeTexture, PtoVolumeTex(P));
   // select channel
   float intensityf = intensity[ch];
-  intensityf = (intensityf - g_intensityMin[ch]) / (g_intensityMax[ch] - g_intensityMin[ch]);
+//  intensityf = (intensityf - g_intensityMin[ch]) / (g_intensityMax[ch] - g_intensityMin[ch]);
   //intensityf = texture(g_lutTexture[ch], vec2(intensityf, 0.5)).x;
 
   return intensityf;
@@ -339,22 +341,22 @@ float GetOpacity(float NormalizedIntensity, int ch)
 
 vec3 GetEmissionN(float NormalizedIntensity, int ch)
 {
-  return g_Emissive[ch];
+  return g_emissive[ch];
 }
 
 vec3 GetDiffuseN(float NormalizedIntensity, int ch)
 {
-  return g_Diffuse[ch];
+  return g_diffuse[ch];
 }
 
 vec3 GetSpecularN(float NormalizedIntensity, int ch)
 {
-  return g_Specular[ch];
+  return g_specular[ch];
 }
 
 float GetRoughnessN(float NormalizedIntensity, int ch)
 {
-  return g_Roughness[ch];
+  return g_roughness[ch];
 }
 
 // a bsdf sample, a sample on a light source, and a randomly chosen light index
@@ -800,7 +802,7 @@ bool FreePathRM(inout Ray R, inout uvec2 seed)
   float intensity = 0.0;
   while (Sum < S)
   {
-    Ps = R.m_O + MinT * R.m_D;
+    Ps = rayAt(R, MinT);  // R.m_O + MinT * R.m_D;
 
     if (MinT > MaxT)
       return false;
@@ -816,7 +818,7 @@ bool FreePathRM(inout Ray R, inout uvec2 seed)
 }
 
 
-int NearestLight(Ray R, out vec3 LightColor, out vec3 Pl, out float pPdf)
+int NearestLight(Ray R, out vec3 LightColor, out vec3 Pl, out float oPdf)
 {
   int Hit = -1;
   
@@ -835,7 +837,7 @@ int NearestLight(Ray R, out vec3 LightColor, out vec3 Pl, out float pPdf)
     }
   }
 
-  pPdf = Pdf;
+  oPdf = Pdf;
 
   return Hit;
 }
@@ -857,21 +859,14 @@ vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, 
   
 
   Ray Rl = Ray(vec3(0,0,0), vec3(0,0,1.0), 0.0, 1500000.0f); 
-   Li = Light_SampleL(light, Pe, Rl, LightPdf, LS);
+  Li = Light_SampleL(light, Pe, Rl, LightPdf, LS);
   
-  //const CudaLight* pLight = NULL;
-
   vec3 Wi = -Rl.m_D, P = vec3(0,0,0);
-  //Wi = -Rl.m_D; 
 
   F = Shader_F(Shader,Wo, Wi); 
-  //return RGBtoXYZ(Wo);
-  //return RGBtoXYZ(Wi);
+
   ShaderPdf = Shader_Pdf(Shader, Wo, Wi);
 
-//if (ShaderPdf < 0.0f) {
-//  return vec3(1,1,1);
-//}
   if (!IsBlack(Li) && (ShaderPdf > 0.0f) && (LightPdf > 0.0f) && !FreePathRM(Rl, seed))
   {
     float WeightMIS = PowerHeuristic(1.0f, LightPdf, 1.0f, ShaderPdf);
@@ -880,7 +875,7 @@ vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, 
       Ld += F * Li * abs(dot(Wi, N)) * WeightMIS / LightPdf;
     }
 
-    if (shaderType == ShaderType_Phase){
+    else if (shaderType == ShaderType_Phase){
       Ld += F * Li * WeightMIS / LightPdf;
     }
   }
@@ -907,7 +902,7 @@ vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, 
 
           }
 
-          if (shaderType == ShaderType_Phase) {
+          else if (shaderType == ShaderType_Phase) {
             Ld += F * Li * WeightMIS / ShaderPdf;
           }
         }
@@ -923,22 +918,17 @@ vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, 
 // return a linear xyz color
 vec3 UniformSampleOneLight(int shaderType, float Density, int ch, in vec3 Wo, in vec3 Pe, in vec3 N, inout uvec2 seed)
 {
-  //return RGBtoXYZ(GetDiffuseN(Density, ch));
-  
-  int NumLights = 2;//lighting.m_NoLights;
+  //if (NUM_LIGHTS == 0)
+  //  return BLACK;
 
-  if (NumLights == 0)
-    return BLACK;
-
-  CLightingSample LS = LightingSample_LargeStep(seed);
   // select a random light, a random 2d sample on light, and a random 2d sample on brdf
-  //LightingSample_LargeStep(LS, seed);
+  CLightingSample LS = LightingSample_LargeStep(seed);
 
-  int WhichLight = int(floor(LS.m_LightNum * float(NumLights)));
+  int WhichLight = int(floor(LS.m_LightNum * float(NUM_LIGHTS)));
 
   Light light = gLights[WhichLight];
 
-  return float(NumLights) * EstimateDirectLight(shaderType, Density, ch, light, LS, Wo, Pe, N, seed);
+  return float(NUM_LIGHTS) * EstimateDirectLight(shaderType, Density, ch, light, LS, Wo, Pe, N, seed);
   
 }    
 
@@ -954,6 +944,7 @@ bool SampleDistanceRM(inout Ray R, inout uvec2 seed, out vec3 Ps)
   MaxT = min(MaxT, R.m_MaxT);
 
   // ray march along the ray's projected path and keep an average sigmaT value.
+  // The distance is weighted by the intensity at each ray step sample. High intensity increases the apparent distance.
   // When the distance has become greater than the average sigmaT value given by -log(RandomFloat[0, 1]) / averageSigmaT 
   // then that would be considered the interaction position.
 
@@ -976,7 +967,7 @@ bool SampleDistanceRM(inout Ray R, inout uvec2 seed, out vec3 Ps)
   // ray march until we have traveled S (or hit the maxT of the ray)
   while (Sum < S)
   {
-    Ps = R.m_O + MinT * R.m_D;
+    Ps = rayAt(R, MinT);  // R.m_O + MinT * R.m_D;
 
     if (MinT > MaxT)
       return false;
@@ -985,8 +976,8 @@ bool SampleDistanceRM(inout Ray R, inout uvec2 seed, out vec3 Ps)
     SigmaT = gDensityScale * GetOpacity(intensity, ch);
     //SigmaT = gDensityScale * GetBlendedOpacity(volumedata, GetIntensity4ch(Ps, volumedata));
 
-    Sum			+= SigmaT * gStepSize;
-    MinT	+= gStepSize;
+    Sum += SigmaT * gStepSize;
+    MinT += gStepSize;
   }
 
   // Ps is the point
@@ -1019,27 +1010,20 @@ vec4 CalculateRadiance(inout uvec2 seed) {
   // find point Pe along ray Re
   if (SampleDistanceRM(Re, seed, Pe))
   {
-    //Lv = vec3(0,r,0);
-    //return vec4(Lv, 1.0);
-
     // is there a light between Re.m_O and Pe? (ray's maxT is distance to Pe)
-   // (test to see if area light was hit before volume.)
+    // (test to see if area light was hit before volume.)
     int i = NearestLight(Ray(Re.m_O, Re.m_D, 0.0f, length(Pe - Re.m_O)), Li, Pl, lpdf);
     if (i > -1)
     {
       // set sample pixel value in frame estimate (prior to accumulation)
-      //return vec4(0.0, 1.0, 0.0, 1.0); // GREEN
       return vec4(Li, 1.0);
     }
     
     int ch = 0;
     float D = GetNormalizedIntensityMax4ch(Pe, ch);
-    //return vec4(D,D,D,1.0);
-    //const f4 D = GetIntensity4ch(Pe, volumedata);
 
     // emission from volume
     Lv += RGBtoXYZ(GetEmissionN(D, ch));
-    //Lv += GetBlendedEmission(volumedata, D).ToXYZ();
 
     vec3 gradient = Gradient4ch(Pe, ch);
     // send ray out from Pe toward light
@@ -1104,33 +1088,30 @@ vec4 CumulativeMovingAverage(vec4 A, vec4 Ax, float N)
 void main()
 {
   // seed for rand(seed) function
-    uvec2 seed = uvec2(uFrameCounter, uFrameCounter + 1.0) * uvec2(gl_FragCoord);
+  uvec2 seed = uvec2(uFrameCounter, uFrameCounter + 1.0) * uvec2(gl_FragCoord);
 
   // perform path tracing and get resulting pixel color
   vec4 pixelColor = CalculateRadiance( seed );
     
   vec4 previousColor = texture(tPreviousTexture, vUv);
-   if (uSampleCounter < 1.0) {
-     previousColor = vec4(0,0,0,0);
-   }
+  if (uSampleCounter < 1.0) {
+    previousColor = vec4(0,0,0,0);
+  }
 
-  // TODO CalculateRadiance returns XYZ space. Convert to RGB after linear averaging. (Tonemapping step) ????
-  //out_FragColor = pixelColor;
   out_FragColor = CumulativeMovingAverage(previousColor, pixelColor, uSampleCounter);
-
 }
 `;
 
 
 export let pathTracingUniforms = {
       
-    tPreviousTexture: { type: "t", value: null },//this.screenTextureRenderTarget.texture },
+    tPreviousTexture: { type: "t", value: null },
     
     uSampleCounter: { type: "f", value: 0.0 },
     uFrameCounter: { type: "f", value: 1.0 },
     
     uResolution: { type: "v2", value: new THREE.Vector2() },
-          
+
 ///////////////////////////
     gClippedAaBbMin: { type: "v3", value: new THREE.Vector3(0,0,0) },
     gClippedAaBbMax: { type: "v3", value: new THREE.Vector3(1,1,1) },
@@ -1140,9 +1121,9 @@ export let pathTracingUniforms = {
     gInvAaBbMax: { type: "v3", value: new THREE.Vector3() },
     g_nChannels: { type: "i", value: 1 },
     gShadingType: { type: "i", value: 2 },
-    gGradientDeltaX: { type: "v3", value: 0.0 },
-    gGradientDeltaY: { type: "v3", value: 0.0 },
-    gGradientDeltaZ: { type: "v3", value: 0.0 },
+    gGradientDeltaX: { type: "v3", value: new THREE.Vector3(0.01, 0, 0) },
+    gGradientDeltaY: { type: "v3", value: new THREE.Vector3(0, 0.01, 0) },
+    gGradientDeltaZ: { type: "v3", value: new THREE.Vector3(0, 0, 0.01) },
     gInvGradientDelta: { type: "f", value: 0.0 },
     gGradientFactor: { type: "f", value: 0.5 },
 
@@ -1165,13 +1146,9 @@ export let pathTracingUniforms = {
           m_theta: 0.0,
           m_phi: 0.0,
           m_width: 10.0,
-          m_invWidth: 0.1,
           m_halfWidth: 5.0,
-          m_invHalfWidth: 0.2,
           m_height: 10.0,
-          m_invHeight: 0.1,
           m_halfHeight: 5.0,
-          m_invHalfHeight: 0.2,
           m_distance: 10.0,
           m_skyRadius: 1000.0,
           m_P: new THREE.Vector3(),
@@ -1191,13 +1168,9 @@ export let pathTracingUniforms = {
           m_theta: 0.0,
           m_phi: 0.0,
           m_width: 1.0,
-          m_invWidth: 0.1,
           m_halfWidth: 5.0,
-          m_invHalfWidth: 0.2,
           m_height: 1.0,
-          m_invHeight: 0.1,
           m_halfHeight: 5.0,
-          m_invHalfHeight: 0.2,
           m_distance: 10.0,
           m_skyRadius: 1000.0,
           m_P: new THREE.Vector3(),
@@ -1222,25 +1195,25 @@ export let pathTracingUniforms = {
     g_intensityMax: { type: "v4", value: new THREE.Vector4(1,1,1,1) },
     g_intensityMin: { type: "v4", value: new THREE.Vector4(0,0,0,0) },
     g_opacity: { type: "1fv", value: [1,1,1,1] },
-    g_Emissive: { type: "v3v", value: [
+    g_emissive: { type: "v3v", value: [
       new THREE.Vector3(0,0,0),
       new THREE.Vector3(0,0,0),
       new THREE.Vector3(0,0,0),
       new THREE.Vector3(0,0,0)
     ] },
-    g_Diffuse: { type: "v3v", value: [
+    g_diffuse: { type: "v3v", value: [
       new THREE.Vector3(1,0,0),
       new THREE.Vector3(0,1,0),
       new THREE.Vector3(0,0,1),
       new THREE.Vector3(1,0,1)
     ] },
-    g_Specular: { type: "v3v", value: [
+    g_specular: { type: "v3v", value: [
       new THREE.Vector3(0,0,0),
       new THREE.Vector3(0,0,0),
       new THREE.Vector3(0,0,0),
       new THREE.Vector3(0,0,0)
     ] },
-    g_Roughness: { type: "1fv", value: [1,1,1,1] },
+    g_roughness: { type: "1fv", value: [1,1,1,1] },
     uShowLights: { type:"f", value: 0 }
 
   };

@@ -63,6 +63,9 @@ export default class MeshVolume {
 
     setOrthoThickness(value) {
     }
+    
+    setAxisClip(axis, minval, maxval, isOrthoAxis) {
+    }
 
     //////////////////////////////
 

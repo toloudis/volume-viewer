@@ -10,6 +10,11 @@ export default class RayMarchedAtlasVolume {
         // need?
         this.volume = volume;
 
+        this.bounds = {
+            bmin: new THREE.Vector3(-0.5, -0.5, -0.5),
+            bmax: new THREE.Vector3(0.5, 0.5, 0.5)
+        };
+        
         this.cube = new THREE.BoxGeometry(1.0, 1.0, 1.0);
         this.cubeMesh = new THREE.Mesh(this.cube);
         this.cubeMesh.name = "Volume";

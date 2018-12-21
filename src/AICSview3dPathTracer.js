@@ -92,7 +92,7 @@ export class AICSview3d_PT {
     // This is currently rendered as a fullscreen quad with no camera transform in the vertex shader!
     // It is also composited with screenTextureRenderTarget's texture.
     // (Read previous screenTextureRenderTarget to use as a new starting point to blend with)
-    this.canvas3d.renderer.render( this.pathTracingScene, this.canvas3d.perspectiveCamera, this.pathTracingRenderTarget );	
+    this.canvas3d.renderer.render( this.pathTracingScene, this.quadCamera, this.pathTracingRenderTarget );	
     
     // STEP 2
     // Render(copy) the final pathTracingScene output(above) into screenTextureRenderTarget
@@ -288,7 +288,7 @@ export class AICSview3d_PT {
       }
 
       // set colors.
-      this.pathTracingUniforms.g_Diffuse.value[i].fromArray(this.image.getChannelColor(ch)).multiplyScalar(1.0/255.0);
+      this.pathTracingUniforms.g_diffuse.value[i].fromArray(this.image.getChannelColor(ch)).multiplyScalar(1.0/255.0);
     }
     // defaults to rgba and unsignedbytetype so dont need to supply format this time.
     this.volumeTexture.image.data.set(data);
@@ -311,10 +311,10 @@ export class AICSview3d_PT {
     for (let c = 0; c < this.viewChannels.length; ++c) {
        let i = this.viewChannels[c];
        if (i > -1) {
-        this.pathTracingUniforms.g_Diffuse.value[c] = new THREE.Vector3().fromArray(this.image.getChannelColor(i)).multiplyScalar(1.0/255.0);
-        this.pathTracingUniforms.g_Specular.value[c] = new THREE.Vector3().fromArray(this.image.specular[i]).multiplyScalar(1.0/255.0);
-        this.pathTracingUniforms.g_Emissive.value[c] = new THREE.Vector3().fromArray(this.image.emissive[i]).multiplyScalar(1.0/255.0);
-        this.pathTracingUniforms.g_Roughness.value[c] = this.image.roughness[i];
+        this.pathTracingUniforms.g_diffuse.value[c] = new THREE.Vector3().fromArray(this.image.getChannelColor(i)).multiplyScalar(1.0/255.0);
+        this.pathTracingUniforms.g_specular.value[c] = new THREE.Vector3().fromArray(this.image.specular[i]).multiplyScalar(1.0/255.0);
+        this.pathTracingUniforms.g_emissive.value[c] = new THREE.Vector3().fromArray(this.image.emissive[i]).multiplyScalar(1.0/255.0);
+        this.pathTracingUniforms.g_roughness.value[c] = this.image.roughness[i];
       }
     }
     this.sampleCounter = 0.0;
@@ -442,13 +442,13 @@ export class AICSview3d_PT {
     // hence the name.  It is an Orthographic camera that sits facing the view plane, which serves as
     // the window into our 3d world. This camera will not move or rotate for the duration of the app.
     this.quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    this.screenTextureScene.add(this.quadCamera);
-    this.scene.add(this.quadCamera);
+    //this.screenTextureScene.add(this.quadCamera);
+//    this.scene.add(this.quadCamera);
 
     // worldCamera is the dynamic camera 3d object that will be positioned, oriented and 
     // constantly updated inside the 3d scene.  Its view will ultimately get passed back to the 
     // stationary quadCamera, which renders the scene to a fullscreen quad (made up of 2 large triangles).
-    this.pathTracingScene.add(this.canvas3d.perspectiveCamera);
+//    this.pathTracingScene.add(this.canvas3d.perspectiveCamera);
 
     const pixelRatio = 1.0;
 
@@ -612,7 +612,7 @@ export class AICSview3d_PT {
     // the following keeps the large scene ShaderMaterial quad right in front 
     //   of the camera at all times. This is necessary because without it, the scene 
     //   quad will fall out of view and get clipped when the camera rotates past 180 degrees.
-    this.canvas3d.perspectiveCamera.add(this.pathTracingMesh);
+//    this.canvas3d.perspectiveCamera.add(this.pathTracingMesh);
 
     this.screenTextureGeometry = new THREE.PlaneBufferGeometry(2, 2);
 
@@ -649,9 +649,6 @@ export class AICSview3d_PT {
 
     //////////////////////////////////////////////////////
     //////////////////////////////////////////////////////
-
-    this.oldScale = new THREE.Vector3(0.5, 0.5, 0.5);
-    this.currentScale = new THREE.Vector3(0.5, 0.5, 0.5);
 
     // background color
     this.canvas3d.renderer.setClearColor(this.backgroundColor, 1.000);

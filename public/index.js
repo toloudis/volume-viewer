@@ -7,8 +7,8 @@ import {
 } from '../src';
 
 let el = document.getElementById("volume-viewer");
-let view3D = new AICSview3d_PT(el);
-//let view3D = new AICSview3d(el);
+//let view3D = new AICSview3d_PT(el);
+let view3D = new AICSview3d(el);
 
 // TODO FIX ME : run this code after we know that the page has rendered, 
 // so that the view3D can get size from el
@@ -312,7 +312,7 @@ function loadImageData(jsondata, volumedata) {
 
     view3D.setCameraMode('3D');
     aimg.setDensity(0.1);
-    aimg.setBrightness(1.0);
+    aimg.setBrightness(0.75);
 }
 
 var xbtn = document.getElementById("X");

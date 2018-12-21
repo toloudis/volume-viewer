@@ -35,10 +35,14 @@ export class AICSthreeJsPanel {
       if (context) {
         this.hasWebGL2 = true;
         this.renderer = new THREE.WebGLRenderer({
+          context: context,
           canvas: this.canvas,
-          context: context
+          preserveDrawingBuffer : true,
+          alpha: true,
+          premultipliedAlpha: false,
+          sortObjects: true
         });
-        this.renderer.autoClear = false;
+        //this.renderer.autoClear = false;
         // set pixel ratio to 0.25 or 0.5 to render at lower res.
         this.renderer.setPixelRatio( window.devicePixelRatio );
         this.renderer.state.setBlending(THREE.NormalBlending);
@@ -269,8 +273,24 @@ export class AICSthreeJsPanel {
     }
     // disable the old, install the new.
     this.controls.enabled = false;
+
+    // detach old control change handlers
+    this.removeControlHandlers();
+
     this.controls = newControls;
     this.controls.enabled = true;
+
+    // re-install existing control change handlers on new controls
+    if (this.controlStartHandler) {
+      this.controls.addEventListener('start', this.controlStartHandler);  
+    }
+    if (this.controlChangeHandler) {
+      this.controls.addEventListener('change', this.controlChangeHandler);
+    }
+    if (this.controlEndHandler) {
+      this.controls.addEventListener('end', this.controlEndHandler);    
+    }
+
     this.controls.update();
   }
 
@@ -403,4 +423,34 @@ export class AICSthreeJsPanel {
   stoprender() {
     this.renderer.setAnimationLoop(null);
   }
+
+  removeControlHandlers() {
+    if (this.controlStartHandler) {
+      this.controls.removeEventListener('start', this.controlStartHandler);
+    }
+    if (this.controlChangeHandler) {
+        this.controls.removeEventListener('change', this.controlChangeHandler);
+    }
+    if (this.controlEndHandler) {
+        this.controls.removeEventListener('end', this.controlEndHandler);
+    }
+  }
+
+  setControlHandlers(image) {
+    this.removeControlHandlers();
+
+    if (image.onStartControls) {
+      this.controlStartHandler = image.onStartControls.bind(image);
+      this.controls.addEventListener('start', this.controlStartHandler);  
+    }
+    if (image.onChangeControls) {
+      this.controlChangeHandler = image.onChangeControls.bind(image);
+      this.controls.addEventListener('change', this.controlChangeHandler);
+    }
+    if (image.onEndControls) {
+      this.controlEndHandler = image.onEndControls.bind(image);
+      this.controls.addEventListener('end', this.controlEndHandler);    
+    }
+  }
+
 }
