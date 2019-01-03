@@ -142,6 +142,10 @@ export default class RayMarchedAtlasVolume {
         }
         return this.channelData.setChannelAsMask(channelIndex, this.volume.channels[channelIndex]);
     }
+
+    setMaskAlpha(maskAlpha) {
+        this.setUniform('maskAlpha', maskAlpha);
+    }
       
     setOrthoThickness(value) {
         this.setUniform('orthoThickness', value);

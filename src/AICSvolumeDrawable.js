@@ -459,7 +459,18 @@ AICSvolumeDrawable.prototype.setChannelAsMask = function(channelIndex) {
   if (!this.volume.channels[channelIndex] || !this.volume.channels[channelIndex].loaded) {
     return false;
   }
-  return this.rayMarchedAtlasVolume.setChannelAsMask(channelIndex);
+  // TODO set value for both but get correct return value from either?
+  PT && this.pathTracedVolume.setChannelAsMask(channelIndex);
+  !PT && this.rayMarchedAtlasVolume.setChannelAsMask(channelIndex);
+};
+
+/**
+ * Set a multiplier for how much of the mask channel to mask out the background
+ * @param {number} maskAlpha 
+ */
+AICSvolumeDrawable.prototype.setMaskAlpha = function(maskAlpha) {
+  PT && this.pathTracedVolume.setMaskAlpha(maskAlpha);
+  !PT && this.rayMarchedAtlasVolume.setMaskAlpha(maskAlpha);
 };
 
 /**

@@ -45,6 +45,7 @@ const presets = {
 const myState = {
     file: "",
     density: 50.0,
+    maskAlpha: 1.0,
     exposure: 0.75,
     aperture: 0.0,
     fov: 20,
@@ -77,6 +78,9 @@ function setupGui() {
 
     gui.add(myState, "density").max(100.0).min(0.0).step(0.001).onChange(function (value) {
         view3D.updateDensity(value);
+    });
+    gui.add(myState, "maskAlpha").max(1.0).min(0.0).step(0.001).onChange(function (value) {
+        view3D.image.setMaskAlpha(value);
     });
 
     var cameragui = gui.addFolder("Camera");
@@ -293,10 +297,10 @@ function loadImageData(jsondata, volumedata) {
     else {
         AICSvolumeLoader.loadVolumeAtlasData(jsondata.images, (url, channelIndex, atlasdata, atlaswidth, atlasheight) => {
             aimg.setChannelDataFromAtlas(channelIndex, atlasdata, atlaswidth, atlasheight);
-            // if (aimg.volume.loaded) {
-            //     aimg.setChannelAsMask(5);
-            //     aimg.setUniform('maskAlpha', 0.0);
-            // }
+             if (aimg.volume.loaded) {
+                 aimg.setChannelAsMask(5);
+                 aimg.setMaskAlpha(0.0);
+             }
 
             if (jsondata.preset) {
                 let p = jsondata.preset;

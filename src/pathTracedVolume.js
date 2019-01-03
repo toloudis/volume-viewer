@@ -25,6 +25,9 @@ export default class PathTracedVolume {
 
         this.volumeTexture.needsUpdate = true;
 
+        this.maskChannelIndex = -1;
+        this.maskAlpha = 1.0;
+
         // create Lut textures
         for (var i = 0; i < 4; ++i) {
             // empty array
@@ -407,15 +410,26 @@ export default class PathTracedVolume {
             this.bounds.bmax.y*PhysicalSize.y, 
             this.bounds.bmax.z*PhysicalSize.z
         );
-
+        this.sampleCounter = 0.0;
     }
 
     setChannelAsMask(channelIndex) {
         if (!this.volume.channels[channelIndex] || !this.volume.channels[channelIndex].loaded) {
           return false;
         }
+        if (this.maskChannelIndex !== channelIndex) {
+          this.maskChannelIndex = channelIndex;
+          this.updateVolumeData4();
+          this.sampleCounter = 0.0;  
+        }
     }
       
+    setMaskAlpha(maskAlpha) {
+      this.maskAlpha = maskAlpha;
+      this.updateVolumeData4();
+      this.sampleCounter = 0.0;  
+    }
+
     setOrthoThickness(value) {
     }
 
@@ -484,6 +498,20 @@ export default class PathTracedVolume {
                 data[i + ix*4 + iy*4*sx + iz*4*sx*sy] = this.volume.getChannel(ch).getIntensity(ix,iy,iz);
               }
             }
+          }
+          if (this.maskChannelIndex !== -1 && this.maskAlpha < 1.0) {
+            let maskVal = 1.0;
+            const maskAlpha = this.maskAlpha * this.maskAlpha * this.maskAlpha * this.maskAlpha;
+            for (var iz = 0; iz < sz; ++iz) {
+              for (var iy = 0; iy < sy; ++iy) {
+                for (var ix = 0; ix < sx; ++ix) {
+                  // binary masking
+                  maskVal = this.volume.getChannel(this.maskChannelIndex).getIntensity(ix,iy,iz) > 0 ? 1.0 : 0.0;
+                  maskVal = maskVal * (1-maskAlpha) + 1.0 * maskAlpha;
+                  data[i + ix*4 + iy*4*sx + iz*4*sx*sy] *= maskVal;
+                }
+              }
+            }  
           }
         }
         // defaults to rgba and unsignedbytetype so dont need to supply format this time.
