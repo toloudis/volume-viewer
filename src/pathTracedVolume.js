@@ -613,12 +613,8 @@ export default class PathTracedVolume {
     
         for (let i = 0; i < 2; ++i) {
           let lt = this.pathTracingUniforms.gLights.value[i];
-          lt.m_invWidth = 1.0 / lt.m_width;
           lt.m_halfWidth = 0.5 * lt.m_width;
-          lt.m_invHalfWidth = 1.0 / lt.m_halfWidth;
-          lt.m_invHeight = 1.0 / lt.m_height;
           lt.m_halfHeight = 0.5 * lt.m_height;
-          lt.m_invHalfHeight = 1.0 / lt.m_halfHeight;
           lt.m_target.copy(bbctr);
     
           // Determine light position
