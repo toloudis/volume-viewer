@@ -391,6 +391,9 @@ export default class PathTracedVolume {
 
     // TODO brightness and exposure should be the same thing?
     setBrightness(brightness) {
+        if (brightness === 1.0) {
+            brightness = 1.01;
+        }
         this.screenOutputMaterial.uniforms.gInvExposure.value = 1.0 / (1.0 - brightness);
         this.sampleCounter = 0.0;
     }
