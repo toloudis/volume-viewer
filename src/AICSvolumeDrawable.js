@@ -4,16 +4,14 @@ import MeshVolume from './meshVolume.js';
 import RayMarchedAtlasVolume from './rayMarchedAtlasVolume.js';
 import PathTracedVolume from './pathTracedVolume.js';
 
-//const PT = false;
-const PT = true;
-
 /**
  * A renderable multichannel volume image with 8-bits per channel intensity values.
  * @class
  * @param {imageInfo} imageInfo 
  */
 function AICSvolumeDrawable(imageInfo) {
-  
+  this.PT = false;
+
   // THE VOLUME DATA
   this.volume = new AICSvolume(imageInfo);
 
@@ -42,18 +40,22 @@ function AICSvolumeDrawable(imageInfo) {
 
   this.sceneRoot = new THREE.Object3D();//create an empty container
 
-  this.rayMarchedAtlasVolume = new RayMarchedAtlasVolume(this.volume);
-
   this.meshVolume = new MeshVolume(this.volume);
 
-  if (PT) {
-    this.pathTracedVolume = new PathTracedVolume(this.volume);
+  if (this.PT) {
+    this.volumeRendering = new PathTracedVolume(this.volume);
+    this.pathTracedVolume = this.volumeRendering;
+  }
+  else {
+    this.volumeRendering = new RayMarchedAtlasVolume(this.volume);
+    this.rayMarchedAtlasVolume = this.volumeRendering;
   }
 
-  // draw meshes first, and volume last, for blending and depth test reasons
-  !PT && this.sceneRoot.add(this.meshVolume.get3dObject());
-  !PT && this.sceneRoot.add(this.rayMarchedAtlasVolume.get3dObject());
-  PT && this.sceneRoot.add(this.pathTracedVolume.get3dObject());
+  // draw meshes first, and volume last, for blending and depth test reasons with raymarch
+  !this.PT && this.sceneRoot.add(this.meshVolume.get3dObject());
+  this.sceneRoot.add(this.volumeRendering.get3dObject());
+  // draw meshes last (as overlay) for pathtrace? (or not at all?)
+  //this.PT && this.sceneRoot.add(this.meshVolume.get3dObject());
 
   this.bounds = {
     bmin: new THREE.Vector3(-0.5, -0.5, -0.5),
@@ -116,22 +118,20 @@ AICSvolumeDrawable.prototype.setScale = function(scale) {
   this.currentScale = scale.clone();
 
   this.meshVolume.setScale(scale);
-  this.rayMarchedAtlasVolume.setScale(scale);
-  PT && this.pathTracedVolume.setScale(scale);
+  this.volumeRendering.setScale(scale);
 };
 
-AICSvolumeDrawable.prototype.setUniform = function(name, value) {
-  this.rayMarchedAtlasVolume.setUniform(name, value);
-};
+//AICSvolumeDrawable.prototype.setUniform = function(name, value) {
+//  this.rayMarchedAtlasVolume.setUniform(name, value);
+//};
 
-AICSvolumeDrawable.prototype.setUniformNoRerender = function(name, value) {
-  this.rayMarchedAtlasVolume.setUniform(name, value);
-};
+//AICSvolumeDrawable.prototype.setUniformNoRerender = function(name, value) {
+//  this.rayMarchedAtlasVolume.setUniform(name, value);
+//};
 
 AICSvolumeDrawable.prototype.setResolution = function(viewObj) {
-  this.rayMarchedAtlasVolume.setResolution(viewObj);
+  this.volumeRendering.setResolution(viewObj);
   this.meshVolume.setResolution(viewObj);
-  PT && this.pathTracedVolume.setResolution(viewObj);
 };
 
 // TODO handle this differently in 3D mode vs 2D mode?
@@ -146,15 +146,13 @@ AICSvolumeDrawable.prototype.setAxisClip = function(axis, minval, maxval, isOrth
   this.bounds.bmax[axis] = maxval;
   this.bounds.bmin[axis] = minval;
 
-  !PT && this.rayMarchedAtlasVolume.setAxisClip(axis, minval, maxval, isOrthoAxis);
-  !PT && this.meshVolume.setAxisClip(axis, minval, maxval, isOrthoAxis);
-  PT && this.pathTracedVolume.setAxisClip(axis, minval, maxval, isOrthoAxis);
+  !this.PT && this.meshVolume.setAxisClip(axis, minval, maxval, isOrthoAxis);
+  this.volumeRendering.setAxisClip(axis, minval, maxval, isOrthoAxis);
 };
 
 AICSvolumeDrawable.prototype.setOrthoThickness = function(value) {
-  !PT && this.rayMarchedAtlasVolume.setOrthoThickness(value);
-  !PT && this.meshVolume.setOrthoThickness(value);
-  PT && this.pathTracedVolume.setOrthoThickness(value);
+  !this.PT && this.meshVolume.setOrthoThickness(value);
+  this.volumeRendering.setOrthoThickness(value);
 };
 
 AICSvolumeDrawable.prototype.onAnimate = function(canvas) {
@@ -172,9 +170,10 @@ AICSvolumeDrawable.prototype.onAnimate = function(canvas) {
     this.sceneRoot.position.y = 0.0;
   }
 
-  !PT && this.rayMarchedAtlasVolume.doRender(canvas);
-  !PT && this.meshVolume.doRender(canvas);
-  PT && this.pathTracedVolume.doRender(canvas);
+  // TODO confirm sequence
+  this.volumeRendering.doRender(canvas);
+  !this.PT && this.meshVolume.doRender(canvas);
+
 
 };
 
@@ -233,8 +232,12 @@ AICSvolumeDrawable.prototype.fuse = function() {
   //	return;
   //}
 
-  !PT && this.rayMarchedAtlasVolume.fuse(this.fusion, this.volume.channels);
-  PT && this.pathTracedVolume.updateActiveChannels(this);
+  if (this.PT) {
+    this.pathTracedVolume.updateActiveChannels(this);
+  }
+  else {
+    this.rayMarchedAtlasVolume.fuse(this.fusion, this.volume.channels);
+  }
 
   if (this.redraw) {
     this.redraw();
@@ -243,11 +246,11 @@ AICSvolumeDrawable.prototype.fuse = function() {
 };
 
 AICSvolumeDrawable.prototype.updateMaterial = function() {
-  PT && this.pathTracedVolume.updateMaterial(this);
+  this.PT && this.pathTracedVolume.updateMaterial(this);
 };
 
 AICSvolumeDrawable.prototype.updateLuts = function() {
-  PT && this.pathTracedVolume.updateLuts(this);
+  this.PT && this.pathTracedVolume.updateLuts(this);
 };
 
 AICSvolumeDrawable.prototype.setVoxelSize = function(values) {
@@ -279,8 +282,7 @@ AICSvolumeDrawable.prototype.setVoxelSize = function(values) {
 
 AICSvolumeDrawable.prototype.cleanup = function() {
   this.meshVolume.cleanup();
-  this.rayMarchedAtlasVolume.cleanup();
-  PT && this.pathTracedVolume.cleanup();
+  this.volumeRendering.cleanup();
 };
 
 /**
@@ -295,9 +297,8 @@ AICSvolumeDrawable.prototype.getChannel = function(channelIndex) {
 };
 
 AICSvolumeDrawable.prototype.onChannelLoaded = function(batch) {
-  this.rayMarchedAtlasVolume.onChannelData(batch);
+  this.volumeRendering.onChannelData(batch);
   this.meshVolume.onChannelData(batch);
-  PT && this.pathTracedVolume.onChannelData(batch);
 
   this.fuse();
   // let the outside world have a chance
@@ -325,12 +326,10 @@ AICSvolumeDrawable.prototype.setVolumeChannelEnabled = function(channelIndex, en
   this.fusion[channelIndex].rgbColor = enabled ? this.channel_colors[channelIndex] : 0;
   // if all are nulled out, then hide the volume element from the scene.
   if (this.fusion.every((elem)=>(elem.rgbColor === 0))) {
-    this.rayMarchedAtlasVolume.setVisible(false);
-    PT && this.pathTracedVolume.setVisible(false);
+    this.volumeRendering.setVisible(false);
   }
   else {
-    this.rayMarchedAtlasVolume.setVisible(true);
-    PT && this.pathTracedVolume.setVisible(true);
+    this.volumeRendering.setVisible(true);
   }
 };
 
@@ -399,16 +398,16 @@ AICSvolumeDrawable.prototype.updateChannelMaterial = function(channelIndex, colo
  * @param {number} density Roughly equivalent to opacity, or how translucent or opaque the volume is
  * @param {boolean=} no_redraw Set to true to delay re-rendering. Otherwise ignore.
  */
-AICSvolumeDrawable.prototype.setDensity = function(density, no_redraw) {
-  this.rayMarchedAtlasVolume.setDensity(density);
-  this.pathTracedVolume.setDensity(density * 100.0);
+AICSvolumeDrawable.prototype.setDensity = function(density) {
+  this.density = density;
+  this.volumeRendering.setDensity(density);
 };
 
 /**
  * Get the global density of the volume data
  */
 AICSvolumeDrawable.prototype.getDensity = function() {
-  return this.rayMarchedAtlasVolume.getDensity();
+  return this.density;
 };
 
 /**
@@ -416,17 +415,16 @@ AICSvolumeDrawable.prototype.getDensity = function() {
  * @param {number} brightness Roughly speaking, an intensity multiplier on the whole volume
  * @param {boolean=} no_redraw Set to true to delay re-rendering. Otherwise ignore.
  */
-AICSvolumeDrawable.prototype.setBrightness = function(brightness, no_redraw) {
-  !PT && this.rayMarchedAtlasVolume.setBrightness(brightness);
-  PT && this.pathTracedVolume.setBrightness(brightness* 20/100);
-
+AICSvolumeDrawable.prototype.setBrightness = function(brightness) {
+  this.brightness = brightness;
+  this.volumeRendering.setBrightness(brightness);
 };
 
 /**
  * Get the global brightness of the volume data
  */
 AICSvolumeDrawable.prototype.getBrightness = function() {
-  return this.rayMarchedAtlasVolume.getBrightness();
+  return this.brightness;
 };
 
 /**
@@ -446,7 +444,7 @@ AICSvolumeDrawable.prototype.appendEmptyChannel = function(name, color) {
   });
 
   this.meshVolume.appendEmptyChannel(chname);
-  this.rayMarchedAtlasVolume.appendEmptyChannel(chname);
+  this.volumeRendering.appendEmptyChannel(chname);
 
   return idx;
 };
@@ -459,9 +457,7 @@ AICSvolumeDrawable.prototype.setChannelAsMask = function(channelIndex) {
   if (!this.volume.channels[channelIndex] || !this.volume.channels[channelIndex].loaded) {
     return false;
   }
-  // TODO set value for both but get correct return value from either?
-  PT && this.pathTracedVolume.setChannelAsMask(channelIndex);
-  !PT && this.rayMarchedAtlasVolume.setChannelAsMask(channelIndex);
+  return this.volumeRendering.setChannelAsMask(channelIndex);
 };
 
 /**
@@ -469,8 +465,7 @@ AICSvolumeDrawable.prototype.setChannelAsMask = function(channelIndex) {
  * @param {number} maskAlpha 
  */
 AICSvolumeDrawable.prototype.setMaskAlpha = function(maskAlpha) {
-  PT && this.pathTracedVolume.setMaskAlpha(maskAlpha);
-  !PT && this.rayMarchedAtlasVolume.setMaskAlpha(maskAlpha);
+  this.volumeRendering.setMaskAlpha(maskAlpha);
 };
 
 /**
@@ -486,25 +481,45 @@ AICSvolumeDrawable.prototype.getIntensity = function(c, x, y, z) {
 };
 
 AICSvolumeDrawable.prototype.onStartControls = function() {
-  PT && this.pathTracedVolume.onStartControls();
+  this.PT && this.pathTracedVolume.onStartControls();
 };
 AICSvolumeDrawable.prototype.onChangeControls = function() {
-  PT && this.pathTracedVolume.onChangeControls();
+  this.PT && this.pathTracedVolume.onChangeControls();
 };
 AICSvolumeDrawable.prototype.onEndControls = function() {
-  PT && this.pathTracedVolume.onEndControls();
+  this.PT && this.pathTracedVolume.onEndControls();
 };
 
 AICSvolumeDrawable.prototype.onCameraChanged = function(fov, focalDistance, apertureSize) {
-  PT && this.pathTracedVolume.updateCamera(fov, focalDistance, apertureSize);
+  this.PT && this.pathTracedVolume.updateCamera(fov, focalDistance, apertureSize);
 };
 
 AICSvolumeDrawable.prototype.updateClipRegion = function(xmin, xmax, ymin, ymax, zmin, zmax) {
-  PT && this.pathTracedVolume.updateClipRegion(xmin, xmax, ymin, ymax, zmin, zmax);
+  this.PT && this.pathTracedVolume.updateClipRegion(xmin, xmax, ymin, ymax, zmin, zmax);
 };
 
 AICSvolumeDrawable.prototype.updateLights = function(state) {
-  PT && this.pathTracedVolume.updateLights(state);
+  this.PT && this.pathTracedVolume.updateLights(state);
+};
+
+AICSvolumeDrawable.prototype.setVolumeRendering = function(is_pathtrace) {
+  if (is_pathtrace === this.PT) {
+    return;
+  }
+
+  // destroy old resources.
+  this.volumeRendering.cleanup();
+
+  // create new
+  if (is_pathtrace) {
+    this.volumeRendering = new PathTracedVolume(this.volume);
+    this.pathTracedVolume = this.volumeRendering;
+  }
+  else {
+    this.volumeRendering = new RayMarchedAtlasVolume(this.volume);
+    this.rayMarchedAtlasVolume = this.volumeRendering;
+  }
+  this.PT = is_pathtrace;
 };
 
 export default AICSvolumeDrawable;

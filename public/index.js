@@ -14,6 +14,16 @@ let view3D = new AICSview3d(el);
 // so that the view3D can get size from el
 view3D.resize(null, 1032, 915);
 
+const dataset = {
+    prefixdir: "april/",
+    stages: ["M4", "M5", "M6", "M7"],
+    names: ["ACTB", "ACTN1", "CENT2", "DSP", "FBL", "LAMP1", "LMNB1", "MYH10", "PMP34", "SEC61B", "ST6GAL1", "TJP1", "TOMM20", "TUBA1B"],
+    types: ["raw", "seg"]
+};
+function make_name(stage, name, type) {
+    return name + "_" + stage + "_" + type + "_atlas.json";
+}
+
 const presets = {
     // channel window, level
     "AICS-11_409_atlas.json":  [ [1,0.624], [1,0.933], [0.509, 0.869] ],
@@ -279,6 +289,10 @@ function showChannelUI(img) {
 
 function loadImageData(jsondata, volumedata) {
 
+    jsondata.pixel_size_x = 1.0;
+    jsondata.pixel_size_y = 1.0;
+    jsondata.pixel_size_z = 2.9;
+    
     const aimg = new AICSvolumeDrawable(jsondata);
 
     // tell the viewer about the image
@@ -298,8 +312,8 @@ function loadImageData(jsondata, volumedata) {
         AICSvolumeLoader.loadVolumeAtlasData(jsondata.images, (url, channelIndex, atlasdata, atlaswidth, atlasheight) => {
             aimg.setChannelDataFromAtlas(channelIndex, atlasdata, atlaswidth, atlasheight);
              if (aimg.volume.loaded) {
-                 aimg.setChannelAsMask(5);
-                 aimg.setMaskAlpha(0.0);
+                 //aimg.setChannelAsMask(5);
+                 aimg.setMaskAlpha(1.0);
              }
 
             if (jsondata.preset) {
@@ -339,40 +353,83 @@ setupGui();
 //loadImageData(imgdata, channelVolumes);
 
 // switch the uncommented line to test with volume data or atlas data
-const urlParams = new URLSearchParams(window.location.search);
-const nameToLoad = urlParams.get('name');
+var stageselecter = document.getElementById("phaseselecter");
+var structureselecter = document.getElementById("structureselecter");
+var rawselecter = document.getElementById("rawselecter");
+
+const nameToLoad = make_name(stageselecter.value, structureselecter.value, rawselecter.value);
 if (nameToLoad) {
-    const cellline = nameToLoad.split('_')[0];
-    const prefixdir = 'http://dev-aics-dtp-001/cellviewer-1-3-0/Cell-Viewer_Thumbnails/' + cellline + '/';
-    fetch(prefixdir + nameToLoad + '_atlas.json')
+    fetch(dataset.prefixdir + nameToLoad)
     .then(function(response) {
       return response.json();
     })
     .then(function(myJson) {
+        if (view3D.volumeTexture) {
+            view3D.volumeTexture.dispose();
+            view3D.volumeTexture = null;
+        }
+
         // prefix all the names in myJson.images
         myJson.images.forEach(function(element) {
-            element.name = prefixdir + element.name;
-        });
+            element.name = dataset.prefixdir + element.name;
+        });        
         loadImageData(myJson);
     });  
 }
-else {
-    var cellselecter = document.getElementById("cellselecter");
-    cellselecter.addEventListener("change", (e)=> {
-        fetch(cellselecter.value)
-        .then(function(response) {
-          return response.json();
-        })
-        .then(function(myJson) {
-            if (view3D.volumeTexture) {
-                view3D.volumeTexture.dispose();
-                view3D.volumeTexture = null;
-            }
-    
-            let p = presets[cellselecter.value];
-            myJson.preset = p;
-            loadImageData(myJson);
-        });  
-    });
-}
+
+
+stageselecter.addEventListener("change", (e)=> {
+    const url = make_name(stageselecter.value, structureselecter.value, rawselecter.value);
+    fetch(dataset.prefixdir+url)
+    .then(function(response) {
+      return response.json();
+    })
+    .then(function(myJson) {
+        if (view3D.volumeTexture) {
+            view3D.volumeTexture.dispose();
+            view3D.volumeTexture = null;
+        }
+        // prefix all the names in myJson.images
+        myJson.images.forEach(function(element) {
+            element.name = dataset.prefixdir + element.name;
+        });        
+        loadImageData(myJson);
+    });  
+});
+structureselecter.addEventListener("change", (e)=> {
+    const url = make_name(stageselecter.value, structureselecter.value, rawselecter.value);
+    fetch(dataset.prefixdir+url)
+    .then(function(response) {
+      return response.json();
+    })
+    .then(function(myJson) {
+        if (view3D.volumeTexture) {
+            view3D.volumeTexture.dispose();
+            view3D.volumeTexture = null;
+        }
+        // prefix all the names in myJson.images
+        myJson.images.forEach(function(element) {
+            element.name = dataset.prefixdir + element.name;
+        });        
+        loadImageData(myJson);
+    });  
+});
+rawselecter.addEventListener("change", (e)=> {
+    const url = make_name(stageselecter.value, structureselecter.value, rawselecter.value);
+    fetch(dataset.prefixdir+url)
+    .then(function(response) {
+      return response.json();
+    })
+    .then(function(myJson) {
+        if (view3D.volumeTexture) {
+            view3D.volumeTexture.dispose();
+            view3D.volumeTexture = null;
+        }
+        // prefix all the names in myJson.images
+        myJson.images.forEach(function(element) {
+            element.name = dataset.prefixdir + element.name;
+        });        
+        loadImageData(myJson);
+    });  
+});
 

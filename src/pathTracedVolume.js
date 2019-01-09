@@ -364,7 +364,7 @@ export default class PathTracedVolume {
     }
 
     appendEmptyChannel(name) {
-
+      // Do the right thing!
     }
 
     setScale(scale) {
@@ -385,12 +385,15 @@ export default class PathTracedVolume {
     }
 
     setDensity(density) {
-        this.pathTracingUniforms.gDensityScale.value = density;
+        this.pathTracingUniforms.gDensityScale.value = density * 100.0;
         this.sampleCounter = 0;
     }
 
     // TODO brightness and exposure should be the same thing?
     setBrightness(brightness) {
+      // convert to an exposure value
+      brightness = brightness* 20/100;
+
         if (brightness === 1.0) {
             brightness = 1.01;
         }

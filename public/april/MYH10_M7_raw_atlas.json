@@ -1,0 +1,1 @@
+{"width": 512, "height": 512, "channels": 3, "channel_names": ["C:0", "C:1", "C:2"], "rows": 11, "cols": 12, "tiles": 128, "tile_width": 170, "tile_height": 186, "atlas_width": 2040, "atlas_height": 2046, "pixel_size_x": null, "pixel_size_y": null, "pixel_size_z": null, "images": [{"name": "MYH10_M7_raw_atlas_0.png", "channels": [0, 1, 2]}], "name": "MYH10_M7_raw"}
