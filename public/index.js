@@ -419,11 +419,17 @@ document.addEventListener('keydown', function(event) {
 // combo box implementation
 stageselecter.addEventListener("change", (e)=> {
     loadnewcell(stageselecter.value, structureselecter.value, rawselecter.value);
+    selected_stage = dataset.stages.indexOf(stageselecter.value);
+    stageselecter.blur();
 });
 structureselecter.addEventListener("change", (e)=> {
     loadnewcell(stageselecter.value, structureselecter.value, rawselecter.value);
+    selected_name = dataset.names.indexOf(structureselecter.value);
+    structureselecter.blur();
 });
 rawselecter.addEventListener("change", (e)=> {
     loadnewcell(stageselecter.value, structureselecter.value, rawselecter.value);
+    selected_seg = dataset.names.indexOf(rawselecter.value);
+    rawselecter.blur();
 });
 
