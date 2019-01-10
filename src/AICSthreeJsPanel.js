@@ -166,6 +166,8 @@ export class AICSthreeJsPanel {
         }
         else {
           that.onLeaveVR();
+          that.resetPerspectiveCamera();
+
         }
       } );
   
@@ -199,7 +201,6 @@ export class AICSthreeJsPanel {
       this.onLeaveVRCallback();
     }
     this.renderer.vr.enabled = false;
-    this.resetPerspectiveCamera();
   }
 
   resetPerspectiveCamera() {

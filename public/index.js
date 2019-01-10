@@ -332,7 +332,7 @@ function loadImageData(jsondata, volumedata) {
 
     showChannelUI(aimg);
 
-    view3D.setCameraMode('3D');
+    //view3D.setCameraMode('3D');
     if (rawselecter.value === "seg") {
         aimg.setDensity(1);
     }
