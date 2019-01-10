@@ -10,7 +10,7 @@ module.exports = {
     output: {
         path: path.resolve(__dirname, 'demo'),
         filename: 'image-viewer-ui.bundle.js',
-        publicPath: '/demo/'
+        publicPath: ''
     },
     devtool: 'cheap-module-source-map',
     plugins: [
