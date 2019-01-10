@@ -33,7 +33,7 @@ const myState = {
     fov: 20,
     focal_distance: 4.0,
     skyTopIntensity: 1.0,
-    skyMidIntensity: 1.0,
+    skyMidIntensity: 2.5,
     skyBotIntensity: 1.0,
     skyTopColor: [255, 255, 255],
     skyMidColor: [255, 255, 255],
@@ -270,13 +270,23 @@ function loadImageData(jsondata, volumedata) {
     jsondata.pixel_size_x = 1.0;
     jsondata.pixel_size_y = 1.0;
     jsondata.pixel_size_z = 2.9;
-    jsondata.channel_colors = [
-        [255, 0, 255],
-        [0, 255, 255],
-        [255, 255, 255]
-    ];
+    if (rawselecter.value === "seg") {
+        jsondata.channel_colors = [
+            [50, 0, 50],
+            [0, 255, 255],
+            [255, 255, 255]
+        ];
+    }
+    else {
+        jsondata.channel_colors = [
+            [128, 0, 128],
+            [0, 255, 255],
+            [255, 255, 255]
+        ];
+    }
 
-    const aimg = new AICSvolumeDrawable(jsondata);
+
+    const aimg = new AICSvolumeDrawable(jsondata, isPT);
 
     // tell the viewer about the image
     view3D.setImage(aimg);
@@ -293,8 +303,8 @@ function loadImageData(jsondata, volumedata) {
     }
     else {
         AICSvolumeLoader.loadVolumeAtlasData(jsondata.images, (url, channelIndex, atlasdata, atlaswidth, atlasheight) => {
-            // PRESET
-             if (channelIndex === 0) {
+            // 0 is membrane
+            if (channelIndex === 0) {
                 if (rawselecter.value === "seg") {
                     view3D.image.setVolumeChannelEnabled(channelIndex, false);
                     view3D.updateActiveChannels();
@@ -307,24 +317,19 @@ function loadImageData(jsondata, volumedata) {
             else if (channelIndex === 2) {
             }
 
-            // if (jsondata.preset) {
-            //     let p = jsondata.preset;
-            //     if (p[channelIndex]) {
-            //         aimg.volume.channels[channelIndex].lutGenerator_windowLevel(p[channelIndex][0], p[channelIndex][1]);
-            //     }
-            // }
-
             aimg.setChannelDataFromAtlas(channelIndex, atlasdata, atlaswidth, atlasheight);
-            if (aimg.volume.loaded) {
-                //aimg.setChannelAsMask(5);
-                //aimg.setMaskAlpha(1.0);
-                view3D.updateLuts();
-            }
+
             if (rawselecter.value === "seg") {
                 aimg.volume.channels[channelIndex].lutGenerator_windowLevel(1.0, 0.5);
             }
             else{
                 aimg.volume.channels[channelIndex].lutGenerator_auto2();
+            }
+
+            if (aimg.volume.loaded) {
+                //aimg.setChannelAsMask(5);
+                //aimg.setMaskAlpha(1.0);
+                view3D.updateLuts();
             }
 
         });
@@ -335,11 +340,13 @@ function loadImageData(jsondata, volumedata) {
     //view3D.setCameraMode('3D');
     if (rawselecter.value === "seg") {
         aimg.setDensity(1);
+        //aimg.setDensity(0.32);
     }
     else {
         aimg.setDensity(0.1);
     }
-    aimg.setBrightness(0.75);
+    aimg.setBrightness(0.8);
+    view3D.updateLights(myState);
 }
 
 var xbtn = document.getElementById("X");
@@ -356,6 +363,22 @@ rotbtn.addEventListener("click", ()=>{isRot = !isRot; view3D.setAutoRotate(isRot
 var isAxis = false;
 var axisbtn = document.getElementById("axisbtn");
 axisbtn.addEventListener("click", ()=>{isAxis = !isAxis; view3D.setShowAxis(isAxis)});
+var isPT = false;
+if (view3D.canvas3d.hasWebGL2) {
+    var ptbtn = document.createElement("button");
+    ptbtn.setAttribute("id", "ptbtn");
+    var t = document.createTextNode("Pathtrace");
+    ptbtn.appendChild(t);
+
+    //var ptbtn = document.getElementById("ptbtn");
+    ptbtn.addEventListener("click", ()=>{
+        isPT = !isPT; 
+        view3D.setPathTrace(isPT);
+        view3D.updateLights(myState);
+    });
+
+    axisbtn.parentNode.insertBefore(ptbtn, axisbtn.nextSibling);
+}
 
 setupGui();
 

@@ -246,4 +246,12 @@ export class AICSview3d {
   updateLights(state) {
     this.image.updateLights(state);
   }
+
+  setPathTrace(isPT) {
+    if (isPT && this.canvas3d.hasWebGL2) {
+      this.image.setVolumeRendering(isPT);
+      this.image.setResolution(this.canvas3d);  
+    }
+
+  }
 }

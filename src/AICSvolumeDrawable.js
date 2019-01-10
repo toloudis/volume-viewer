@@ -9,8 +9,8 @@ import PathTracedVolume from './pathTracedVolume.js';
  * @class
  * @param {imageInfo} imageInfo 
  */
-function AICSvolumeDrawable(imageInfo) {
-  this.PT = false;
+function AICSvolumeDrawable(imageInfo, requestPathTrace) {
+  this.PT = !!requestPathTrace;
 
   // THE VOLUME DATA
   this.volume = new AICSvolume(imageInfo);
@@ -255,6 +255,7 @@ AICSvolumeDrawable.prototype.updateMaterial = function() {
 
 AICSvolumeDrawable.prototype.updateLuts = function() {
   this.PT && this.pathTracedVolume.updateLuts(this);
+  !this.PT && this.rayMarchedAtlasVolume.fuse(this.fusion, this.volume.channels);
 };
 
 AICSvolumeDrawable.prototype.setVoxelSize = function(values) {
@@ -511,6 +512,9 @@ AICSvolumeDrawable.prototype.setVolumeRendering = function(is_pathtrace) {
     return;
   }
 
+  // remove old 3d object from scene
+  this.sceneRoot.remove(this.volumeRendering.get3dObject());
+
   // destroy old resources.
   this.volumeRendering.cleanup();
 
@@ -524,6 +528,14 @@ AICSvolumeDrawable.prototype.setVolumeRendering = function(is_pathtrace) {
     this.rayMarchedAtlasVolume = this.volumeRendering;
   }
   this.PT = is_pathtrace;
+
+  this.setBrightness(this.getBrightness());
+  this.setDensity(this.getDensity());
+
+  // add new 3d object to scene
+  this.sceneRoot.add(this.volumeRendering.get3dObject());
+
+  this.fuse();
 };
 
 export default AICSvolumeDrawable;
