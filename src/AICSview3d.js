@@ -252,6 +252,10 @@ export class AICSview3d {
       this.image.setVolumeRendering(isPT);
       this.image.setResolution(this.canvas3d);  
     }
+    else {
+      this.image.setVolumeRendering(false);
+      this.image.setResolution(this.canvas3d);  
+    }
 
   }
 }

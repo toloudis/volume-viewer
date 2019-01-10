@@ -526,7 +526,12 @@ AICSvolumeDrawable.prototype.setVolumeRendering = function(is_pathtrace) {
   else {
     this.volumeRendering = new RayMarchedAtlasVolume(this.volume);
     this.rayMarchedAtlasVolume = this.volumeRendering;
+
+    for (var i = 0; i < this.volume.num_channels; ++i) {
+      this.rayMarchedAtlasVolume.onChannelData([i]);
+    }
   }
+
   this.PT = is_pathtrace;
 
   this.setBrightness(this.getBrightness());
