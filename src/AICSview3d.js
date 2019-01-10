@@ -30,7 +30,8 @@ export class AICSview3d {
     }
     // keep the ortho scale up to date.
     if (this.image && this.canvas3d.camera.isOrthographicCamera) {
-      this.image.setUniformNoRerender('orthoScale', this.canvas3d.controls.scale);
+      this.image.setOrthoScale(this.canvas3d.controls.scale);
+      //this.image.setUniformNoRerender('orthoScale', this.canvas3d.controls.scale);
     }
   };
 

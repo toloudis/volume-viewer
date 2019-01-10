@@ -10,7 +10,7 @@ import PathTracedVolume from './pathTracedVolume.js';
  * @param {imageInfo} imageInfo 
  */
 function AICSvolumeDrawable(imageInfo) {
-  this.PT = false;
+  this.PT = true;
 
   // THE VOLUME DATA
   this.volume = new AICSvolume(imageInfo);
@@ -128,6 +128,10 @@ AICSvolumeDrawable.prototype.setScale = function(scale) {
 //AICSvolumeDrawable.prototype.setUniformNoRerender = function(name, value) {
 //  this.rayMarchedAtlasVolume.setUniform(name, value);
 //};
+
+AICSvolumeDrawable.prototype.setOrthoScale = function(value) {
+  this.volumeRendering.setOrthoScale(value);
+};
 
 AICSvolumeDrawable.prototype.setResolution = function(viewObj) {
   this.volumeRendering.setResolution(viewObj);

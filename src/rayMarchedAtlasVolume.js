@@ -109,6 +109,10 @@ export default class RayMarchedAtlasVolume {
         //this.setUniform('inverseModelViewMatrix', mi, true, true);
     }
 
+    setOrthoScale(value) {
+        this.setUniform('orthoScale', value);
+    }
+
     setResolution(viewObj) {
         const res = new THREE.Vector2(viewObj.getWidth(), viewObj.getHeight());
         this.setUniform('iResolution', res);

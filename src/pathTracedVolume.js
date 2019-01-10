@@ -373,10 +373,14 @@ export default class PathTracedVolume {
 
     }
 
+    setOrthoScale(value) {
+
+    }
+    
     setResolution(viewObj) {
         const res = new THREE.Vector2(viewObj.getWidth(), viewObj.getHeight());
         // scale factor is a huge optimization.  Maybe use 1/dpi scale
-        const scale = 0.75;
+        const scale = 0.25;
         this.pathTracingUniforms.uResolution.value.x = res.x * scale;
         this.pathTracingUniforms.uResolution.value.y = res.y * scale;
         this.pathTracingRenderTarget.setSize(res.x * scale, res.y * scale);
