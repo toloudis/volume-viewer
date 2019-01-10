@@ -10,7 +10,7 @@ import PathTracedVolume from './pathTracedVolume.js';
  * @param {imageInfo} imageInfo 
  */
 function AICSvolumeDrawable(imageInfo) {
-  this.PT = true;
+  this.PT = false;
 
   // THE VOLUME DATA
   this.volume = new AICSvolume(imageInfo);
