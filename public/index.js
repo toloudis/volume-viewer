@@ -452,7 +452,7 @@ structureselecter.addEventListener("change", (e)=> {
 });
 rawselecter.addEventListener("change", (e)=> {
     loadnewcell(stageselecter.value, structureselecter.value, rawselecter.value);
-    selected_seg = dataset.names.indexOf(rawselecter.value);
+    selected_seg = dataset.types.indexOf(rawselecter.value);
     rawselecter.blur();
 });
 
