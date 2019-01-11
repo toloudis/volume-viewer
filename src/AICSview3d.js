@@ -173,14 +173,12 @@ export class AICSview3d {
   setAutoRotate(autorotate) {
     this.canvas3d.setAutoRotate(autorotate);
 
-    if (!pathtrace) {
-      if (autorotate) {
-        this.image.onStartControls();
-      }
-      else {
-        this.image.onEndControls();
-      }  
+    if (autorotate) {
+      this.image.onStartControls();
     }
+    else {
+      this.image.onEndControls();
+    }  
   };
 
   /**
@@ -250,12 +248,11 @@ export class AICSview3d {
   setPathTrace(isPT) {
     if (isPT && this.canvas3d.hasWebGL2) {
       this.image.setVolumeRendering(isPT);
-      this.image.setResolution(this.canvas3d);  
     }
     else {
       this.image.setVolumeRendering(false);
-      this.image.setResolution(this.canvas3d);  
     }
-
+    this.image.setResolution(this.canvas3d);  
+    this.setAutoRotate(this.canvas3d.controls.autoRotate);
   }
 }
