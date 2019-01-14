@@ -8,10 +8,9 @@ export default class PathTracedVolume {
     constructor(volume) {
         // need?
         this.volume = volume;
-
         this.viewChannels = [-1, -1, -1, -1];
 
-        this.pathTracingUniforms = pathTracingUniforms;
+        this.pathTracingUniforms = pathTracingUniforms();
 
         // create volume texture
         const sx = volume.x,
@@ -41,11 +40,11 @@ export default class PathTracedVolume {
             bmin: new THREE.Vector3(-0.5, -0.5, -0.5),
             bmax: new THREE.Vector3(0.5, 0.5, 0.5)
         };
-        
+
         this.cameraIsMoving = false;
         this.sampleCounter = 0;
         this.frameCounter = 0;
-    
+
         this.pathTracingScene = new THREE.Scene();
         this.screenTextureScene = new THREE.Scene();
     
@@ -351,10 +350,12 @@ export default class PathTracedVolume {
             // TODO set some flag to only run this once????
             // OR make this code run properly once per channel as channel data arrives
 
-          this.pathTracingUniforms.g_nChannels.value = 4;
-          this.viewChannels = [0, 1, 2, 3];
-
-          console.log("GOT VOLUME TEXTURE");
+          const nchannels = Math.min(this.volume.num_channels, 4);
+          this.pathTracingUniforms.g_nChannels.value = nchannels;
+          this.viewChannels = [-1, -1, -1, -1];
+          for (let i = 0; i < nchannels; ++i) {
+            this.viewChannels[i] = i;
+          }
 
           this.sampleCounter = 0;
 
@@ -376,16 +377,17 @@ export default class PathTracedVolume {
     setOrthoScale(value) {
 
     }
-    
+
     setResolution(viewObj) {
         const res = new THREE.Vector2(viewObj.getWidth(), viewObj.getHeight());
         // scale factor is a huge optimization.  Maybe use 1/dpi scale
         const scale = 0.25;
-        this.pathTracingUniforms.uResolution.value.x = res.x * scale;
-        this.pathTracingUniforms.uResolution.value.y = res.y * scale;
-        this.pathTracingRenderTarget.setSize(res.x * scale, res.y * scale);
-
-        this.screenTextureRenderTarget.setSize(res.x * scale, res.y * scale);
+        const x = Math.floor(res.x * scale);
+        const y = Math.floor(res.y * scale);
+        this.pathTracingUniforms.uResolution.value.x = x;
+        this.pathTracingUniforms.uResolution.value.y = y;
+        this.pathTracingRenderTarget.setSize(x, y);
+        this.screenTextureRenderTarget.setSize(x, y);
     }
 
     setDensity(density) {

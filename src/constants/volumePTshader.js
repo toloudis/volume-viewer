@@ -1103,7 +1103,8 @@ void main()
 `;
 
 
-export let pathTracingUniforms = {
+export function pathTracingUniforms() {
+  return {
       
     tPreviousTexture: { type: "t", value: null },
     
@@ -1215,5 +1216,5 @@ export let pathTracingUniforms = {
     ] },
     g_roughness: { type: "1fv", value: [1,1,1,1] },
     uShowLights: { type:"f", value: 0 }
-
   };
+}
