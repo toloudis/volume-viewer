@@ -19,7 +19,7 @@ export default class RayMarchedAtlasVolume {
         this.cubeMesh = new THREE.Mesh(this.cube);
         this.cubeMesh.name = "Volume";
 
-        this.uniforms = rayMarchingShaderUniforms;
+        this.uniforms = rayMarchingShaderUniforms();
 
         // shader,vtx and frag.
         var vtxsrc = rayMarchingVertexShaderSrc;

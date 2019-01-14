@@ -273,7 +273,8 @@ export const rayMarchingFragmentShaderSrc = [
 
 ].join('\n');
 
-export const rayMarchingShaderUniforms = {
+export function rayMarchingShaderUniforms() {
+  return {
     'iResolution': {
         type: 'v2',
         value: new THREE.Vector2(100, 100)
@@ -362,4 +363,5 @@ export const rayMarchingShaderUniforms = {
         type: 'i',
         value: 0
     }
+  };
 };
