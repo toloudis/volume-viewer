@@ -63,7 +63,6 @@ export class AICSview3d {
     this.destroyImage();
 
     this.image = img;
-    this.image.redraw = this.redraw.bind(this);
 
     this.scene.add(img.sceneRoot);
 
@@ -91,6 +90,9 @@ export class AICSview3d {
         this.canvas3d.vrControls.popObjectState(this.image);
       }
     };
+
+    // start draw loop
+    this.canvas3d.rerender();
   };
 
   buildScene() {

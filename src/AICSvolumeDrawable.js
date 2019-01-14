@@ -243,10 +243,6 @@ AICSvolumeDrawable.prototype.fuse = function() {
     this.rayMarchedAtlasVolume.fuse(this.fusion, this.volume.channels);
   }
 
-  if (this.redraw) {
-    this.redraw();
-  }
-
 };
 
 AICSvolumeDrawable.prototype.updateMaterial = function() {
@@ -306,6 +302,7 @@ AICSvolumeDrawable.prototype.onChannelLoaded = function(batch) {
   this.meshVolume.onChannelData(batch);
 
   this.fuse();
+
   // let the outside world have a chance
   if (this.onChannelDataReadyCallback) {
     this.onChannelDataReadyCallback();
@@ -488,9 +485,11 @@ AICSvolumeDrawable.prototype.getIntensity = function(c, x, y, z) {
 AICSvolumeDrawable.prototype.onStartControls = function() {
   this.PT && this.pathTracedVolume.onStartControls();
 };
+
 AICSvolumeDrawable.prototype.onChangeControls = function() {
   this.PT && this.pathTracedVolume.onChangeControls();
 };
+
 AICSvolumeDrawable.prototype.onEndControls = function() {
   this.PT && this.pathTracedVolume.onEndControls();
 };

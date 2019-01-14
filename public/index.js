@@ -288,9 +288,6 @@ function loadImageData(jsondata, volumedata) {
 
     const aimg = new AICSvolumeDrawable(jsondata, isPT);
 
-    // tell the viewer about the image
-    view3D.setImage(aimg);
-
     // get data into the image
     if (volumedata) {
         for (var i = 0; i < volumedata.length; ++i) {
@@ -306,8 +303,7 @@ function loadImageData(jsondata, volumedata) {
             // 0 is membrane
             if (channelIndex === 0) {
                 if (rawselecter.value === "seg") {
-                    view3D.image.setVolumeChannelEnabled(channelIndex, false);
-                    view3D.updateActiveChannels();
+                    aimg.setVolumeChannelEnabled(channelIndex, false);
                 }
                 else {
                 }
@@ -327,9 +323,14 @@ function loadImageData(jsondata, volumedata) {
             }
 
             if (aimg.volume.loaded) {
+                // tell the viewer about the image
+                view3D.setImage(aimg);
+
+                view3D.updateActiveChannels();
                 //aimg.setChannelAsMask(5);
                 //aimg.setMaskAlpha(1.0);
                 view3D.updateLuts();
+                view3D.updateLights(myState);
             }
 
         });
@@ -346,7 +347,6 @@ function loadImageData(jsondata, volumedata) {
         aimg.setDensity(0.1);
     }
     aimg.setBrightness(0.8);
-    view3D.updateLights(myState);
 }
 
 var xbtn = document.getElementById("X");
@@ -403,8 +403,7 @@ function loadnewcell(stage, structure, raw) {
             element.name = dataset.prefixdir + element.name;
         });        
         loadImageData(myJson);
-    });  
-
+    });
 }
 
 // initial cell
