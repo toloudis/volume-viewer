@@ -352,10 +352,7 @@ export default class PathTracedVolume {
 
           const nchannels = Math.min(this.volume.num_channels, 4);
           this.pathTracingUniforms.g_nChannels.value = nchannels;
-          this.viewChannels = [-1, -1, -1, -1];
-          for (let i = 0; i < nchannels; ++i) {
-            this.viewChannels[i] = i;
-          }
+          this.viewChannels = [0, 1, 2, 3];
 
           this.sampleCounter = 0;
 
