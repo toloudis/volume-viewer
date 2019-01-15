@@ -381,7 +381,7 @@ export default class PathTracedVolume {
     setResolution(viewObj) {
         const res = new THREE.Vector2(viewObj.getWidth(), viewObj.getHeight());
         // scale factor is a huge optimization.  Maybe use 1/dpi scale
-        const scale = 0.25;
+        const scale = 0.35;
         const x = Math.floor(res.x * scale);
         const y = Math.floor(res.y * scale);
         this.pathTracingUniforms.uResolution.value.x = x;
@@ -398,13 +398,13 @@ export default class PathTracedVolume {
     // TODO brightness and exposure should be the same thing?
     setBrightness(brightness) {
       // convert to an exposure value
-      brightness = brightness* 20/100;
-
+      //brightness = brightness*  20/1000;
+      //brightness = 1.0 / brightness;
+      //brightness = brightness - 0.2;
         if (brightness === 1.0) {
-            brightness = 1.01;
+             brightness = 0.999;
         }
-        this.screenOutputMaterial.uniforms.gInvExposure.value = 1.0 / (1.0 - brightness);
-        this.sampleCounter = 0.0;
+        this.updateExposure(brightness);
     }
 
     // -0.5 .. 0.5
@@ -573,7 +573,7 @@ export default class PathTracedVolume {
       }
     
       updateExposure(e) {
-        this.screenOutputMaterial.uniforms.gInvExposure.value = 1.0 / (1.0 - e);
+        this.screenOutputMaterial.uniforms.gInvExposure.value = (1.0/(1.0-e)) - 1.0;//2.0 - (1.0/e);// 1.0 / (1.0 - e);
         this.sampleCounter = 0.0;
       }
       
@@ -588,6 +588,8 @@ export default class PathTracedVolume {
       }
     
       updateLights(state) {
+        // 0th light in gLights array is sphere light
+        // 1st light in gLights array is area light
         this.pathTracingUniforms.gLights.value[0].m_colorTop = new THREE.Vector3(
           state.skyTopIntensity*state.skyTopColor[0]/255.0,
           state.skyTopIntensity*state.skyTopColor[1]/255.0,
@@ -608,7 +610,6 @@ export default class PathTracedVolume {
           state.lightIntensity*state.lightColor[2]/255.0);
         this.pathTracingUniforms.gLights.value[1].m_theta = state.lightTheta * 3.14159265/180.0; 
         this.pathTracingUniforms.gLights.value[1].m_phi = state.lightPhi * 3.14159265/180.0; 
-        this.pathTracingUniforms.gLights.value[1].m_theta = state.lightTheta; 
         this.pathTracingUniforms.gLights.value[1].m_distance = state.lightDistance; 
         this.pathTracingUniforms.gLights.value[1].m_width = state.lightSize; 
         this.pathTracingUniforms.gLights.value[1].m_height = state.lightSize; 

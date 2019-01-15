@@ -118,7 +118,7 @@ function setupGui() {
     lighting.add(myState, "skyBotIntensity").max(100.0).min(0.01).step(0.1).onChange(function (value) {
         view3D.updateLights(myState);
     });
-    lighting.add(myState, "lightDistance").max(100.0).min(0.0).step(0.1).onChange(function (value) {
+    lighting.add(myState, "lightDistance").max(10.0).min(0.0).step(0.1).onChange(function (value) {
         view3D.updateLights(myState);
     });
     lighting.add(myState, "lightTheta").max(180.0).min(-180.0).step(1).onChange(function (value) {
@@ -130,7 +130,7 @@ function setupGui() {
     lighting.add(myState, "lightSize").max(100.0).min(0.01).step(0.1).onChange(function (value) {
         view3D.updateLights(myState);
     });
-    lighting.add(myState, "lightIntensity").max(100.0).min(0.01).step(0.1).onChange(function (value) {
+    lighting.add(myState, "lightIntensity").max(1000.0).min(0.01).step(0.1).onChange(function (value) {
         view3D.updateLights(myState);
     });
     lighting.addColor(myState, "lightColor").name("lightcolor").onChange(function (value) {

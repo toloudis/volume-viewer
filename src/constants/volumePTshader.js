@@ -106,8 +106,8 @@ uniform sampler2D tPreviousTexture;
 float rand( inout uvec2 seed )
 {
   seed += uvec2(1);
-      uvec2 q = 1103515245U * ( (seed >> 1U) ^ (seed.yx) );
-      uint  n = 1103515245U * ( (q.x) ^ (q.y >> 3U) );
+  uvec2 q = 1103515245U * ( (seed >> 1U) ^ (seed.yx) );
+  uint  n = 1103515245U * ( (q.x) ^ (q.y >> 3U) );
   return float(n) * (1.0 / float(0xffffffffU));
 }
 
@@ -156,22 +156,23 @@ bool SameHemisphere(in vec3 Ww1, in vec3 Ww2)
 vec2 getConcentricDiskSample(in vec2 U)
 {
   float r, theta;
-  // Map uniform random numbers to [-1,1]^2
+  // Map 0..1 to -1..1
   float sx = 2.0 * U.x - 1.0;
   float sy = 2.0 * U.y - 1.0;
-  // Map square to (r,theta)
-  // Handle degeneracy at the origin
   
+  // Map square to (r,theta)
+  
+  // Handle degeneracy at the origin
   if (sx == 0.0 && sy == 0.0)
   {
     return vec2(0.0f, 0.0f);
   }
 
+  // quadrants of disk
   if (sx >= -sy)
   {
     if (sx > sy)
     {
-      // Handle first region of disk
       r = sx;
       if (sy > 0.0)
         theta = sy/r;
@@ -180,7 +181,6 @@ vec2 getConcentricDiskSample(in vec2 U)
     }
     else
     {
-      // Handle second region of disk
       r = sy;
       theta = 2.0f - sx/r;
     }
@@ -189,13 +189,11 @@ vec2 getConcentricDiskSample(in vec2 U)
   {
     if (sx <= sy)
     {
-      // Handle third region of disk
       r = -sx;
       theta = 4.0f - sy/r;
     }
     else
     {
-      // Handle fourth region of disk
       r = -sy;
       theta = 6.0f + sx/r;
     }
@@ -217,14 +215,6 @@ struct Ray {
   vec3 m_D;
   float m_MinT, m_MaxT;
 };
-
-Ray newRay(in vec3 o, in vec3 d) {
-  return Ray(o, d, 0.0, 1500000.0);
-}
-
-Ray newRayT(in vec3 o, in vec3 d, in float t0, in float t1) {
-  return Ray(o, d, t0, t1);
-}
 
 vec3 rayAt(Ray r, float t) {
   return r.m_O + t*r.m_D;
@@ -251,7 +241,7 @@ Ray GenerateCameraRay(in Camera cam, in vec2 Pixel, in vec2 ApertureRnd)
     RayD = normalize((RayD * cam.m_focalDistance) - LI);
   }
 
-  return newRay(RayO, RayD);
+  return Ray(RayO, RayD, 0.0, 1500000.0);
 }
 
 bool IntersectBox(in Ray R, out float pNearT, out float pFarT)
@@ -296,7 +286,7 @@ float GetNormalizedIntensityMax4ch(in vec3 P, out int ch)
       ch = i;
     }
   }
-  return maxIn; // *factor;
+  return maxIn;
 }
 
 float GetNormalizedIntensity(in vec3 P, in int ch)
@@ -312,7 +302,7 @@ float GetNormalizedIntensity4ch(vec3 P, int ch)
   vec4 intensity = UINT8_MAX * texture(volumeTexture, PtoVolumeTex(P));
   // select channel
   float intensityf = intensity[ch];
-//  intensityf = (intensityf - g_intensityMin[ch]) / (g_intensityMax[ch] - g_intensityMin[ch]);
+  //intensityf = (intensityf - g_intensityMin[ch]) / (g_intensityMax[ch] - g_intensityMin[ch]);
   //intensityf = texture(g_lutTexture[ch], vec2(intensityf, 0.5)).x;
 
   return intensityf;
@@ -330,7 +320,6 @@ vec3 Gradient4ch(vec3 P, int ch)
 
   return Gradient;
 }
-
 
 float GetOpacity(float NormalizedIntensity, int ch)
 {
@@ -360,7 +349,7 @@ float GetRoughnessN(float NormalizedIntensity, int ch)
 }
 
 // a bsdf sample, a sample on a light source, and a randomly chosen light index
-struct CLightingSample {
+struct LightingSample {
   float m_bsdfComponent;
   vec2  m_bsdfDir;
   vec2  m_lightPos;
@@ -368,8 +357,8 @@ struct CLightingSample {
   float m_LightNum;
 };
 
-CLightingSample LightingSample_LargeStep(inout uvec2 seed) {
-  return CLightingSample(
+LightingSample LightingSample_LargeStep(inout uvec2 seed) {
+  return LightingSample(
     rand(seed), 
     vec2(rand(seed), rand(seed)),
     vec2(rand(seed), rand(seed)),
@@ -396,7 +385,7 @@ vec3 Light_Le(in Light light, in vec2 UV)
 }
 
 // return a color xyz
-vec3 Light_SampleL(in Light light, in vec3 P, out Ray Rl, out float Pdf, in CLightingSample LS)
+vec3 Light_SampleL(in Light light, in vec3 P, out Ray Rl, out float Pdf, in LightingSample LS)
 {
   vec3 L = BLACK;
   Pdf = 0.0;
@@ -516,7 +505,7 @@ float Light_Pdf(in Light light, in vec3 P, in vec3 Wi)
   return 0.0f;
 }
 
-struct CVolumeShader {
+struct VolumeShader {
   int m_Type; // 0 = bsdf, 1 = phase
 
   vec3 m_Kd; // isotropic phase // xyz color
@@ -529,17 +518,17 @@ struct CVolumeShader {
 };
 
 // return a xyz color
-vec3 ShaderPhase_F(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
+vec3 ShaderPhase_F(in VolumeShader shader, in vec3 Wo, in vec3 Wi)
 {
   return shader.m_Kd * INV_PI;
 }
 
-float ShaderPhase_Pdf(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
+float ShaderPhase_Pdf(in VolumeShader shader, in vec3 Wo, in vec3 Wi)
 {
   return INV_4_PI;
 }
 
-vec3 ShaderPhase_SampleF(in CVolumeShader shader, in vec3 Wo, out vec3 Wi, out float Pdf, in vec2 U)
+vec3 ShaderPhase_SampleF(in VolumeShader shader, in vec3 Wo, out vec3 Wi, out float Pdf, in vec2 U)
 {
   Wi	= getUniformSphereSample(U);
   Pdf	= ShaderPhase_Pdf(shader, Wo, Wi);
@@ -548,19 +537,19 @@ vec3 ShaderPhase_SampleF(in CVolumeShader shader, in vec3 Wo, out vec3 Wi, out f
 }
 
 // return a xyz color
-vec3 Lambertian_F(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
+vec3 Lambertian_F(in VolumeShader shader, in vec3 Wo, in vec3 Wi)
 {
   return shader.m_Kd * INV_PI;
 }
 
-float Lambertian_Pdf(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
+float Lambertian_Pdf(in VolumeShader shader, in vec3 Wo, in vec3 Wi)
 {
   //return abs(Wi.z)*INV_PI;
   return SameHemisphere(Wo, Wi) ? abs(Wi.z) * INV_PI : 0.0f;
 }
 
 // return a xyz color
-vec3 Lambertian_SampleF(in CVolumeShader shader, in vec3 Wo, out vec3 Wi, out float Pdf, in vec2 U)
+vec3 Lambertian_SampleF(in VolumeShader shader, in vec3 Wo, out vec3 Wi, out float Pdf, in vec2 U)
 {
   Wi = getCosineWeightedHemisphereSample(U);
 
@@ -577,7 +566,7 @@ vec3 SphericalDirection(in float SinTheta, in float CosTheta, in float Phi)
   return vec3(SinTheta * cos(Phi), SinTheta * sin(Phi), CosTheta);
 }
 
-void Blinn_SampleF(in CVolumeShader shader, in vec3 Wo, out vec3 Wi, out float Pdf, in vec2 U)
+void Blinn_SampleF(in VolumeShader shader, in vec3 Wo, out vec3 Wi, out float Pdf, in vec2 U)
 {
   // Compute sampled half-angle vector wh for Blinn distribution
   float costheta = pow(U.x, 1.f / (shader.m_Exponent+1.0));
@@ -601,12 +590,12 @@ void Blinn_SampleF(in CVolumeShader shader, in vec3 Wo, out vec3 Wi, out float P
   Pdf = blinn_pdf;
 }
 
-float Blinn_D(in CVolumeShader shader, in vec3 wh)
+float Blinn_D(in VolumeShader shader, in vec3 wh)
 {
   float costhetah = abs(wh.z);//AbsCosTheta(wh);
   return (shader.m_Exponent+2.0) * INV_2_PI * pow(costhetah, shader.m_Exponent);
 }
-float Microfacet_G(in CVolumeShader shader, in vec3 wo, in vec3 wi, in vec3 wh)
+float Microfacet_G(in VolumeShader shader, in vec3 wo, in vec3 wi, in vec3 wh)
 {
   float NdotWh = abs(wh.z);//AbsCosTheta(wh);
   float NdotWo = abs(wo.z);//AbsCosTheta(wo);
@@ -616,7 +605,7 @@ float Microfacet_G(in CVolumeShader shader, in vec3 wo, in vec3 wi, in vec3 wh)
   return min(1.f, min((2.f * NdotWh * NdotWo / WOdotWh), (2.f * NdotWh * NdotWi / WOdotWh)));
 }
 
-vec3 Microfacet_F(in CVolumeShader shader, in vec3 wo, in vec3 wi)
+vec3 Microfacet_F(in VolumeShader shader, in vec3 wo, in vec3 wi)
 {
   float cosThetaO = abs(wo.z);//AbsCosTheta(wo);
   float cosThetaI = abs(wi.z);//AbsCosTheta(wi);
@@ -637,19 +626,19 @@ vec3 Microfacet_F(in CVolumeShader shader, in vec3 wo, in vec3 wi)
   return shader.m_R * Blinn_D(shader, wh) * Microfacet_G(shader, wo, wi, wh) * F / (4.f * cosThetaI * cosThetaO);
 }
 
-vec3 ShaderBsdf_WorldToLocal(in CVolumeShader shader, in vec3 W)
+vec3 ShaderBsdf_WorldToLocal(in VolumeShader shader, in vec3 W)
 {
   return vec3(dot(W, shader.m_Nu), dot(W, shader.m_Nv), dot(W, shader.m_Nn));
 }
 
-vec3 ShaderBsdf_LocalToWorld(in CVolumeShader shader, in vec3 W)
+vec3 ShaderBsdf_LocalToWorld(in VolumeShader shader, in vec3 W)
 {
   return vec3(	shader.m_Nu.x * W.x + shader.m_Nv.x * W.y + shader.m_Nn.x * W.z,
     shader.m_Nu.y * W.x + shader.m_Nv.y * W.y + shader.m_Nn.y * W.z,
     shader.m_Nu.z * W.x + shader.m_Nv.z * W.y + shader.m_Nn.z * W.z);
 }
 
-float Blinn_Pdf(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
+float Blinn_Pdf(in VolumeShader shader, in vec3 Wo, in vec3 Wi)
 {
   vec3 wh = normalize(Wo + Wi);
 
@@ -663,7 +652,7 @@ float Blinn_Pdf(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
   return blinn_pdf;
 }
 
-vec3 Microfacet_SampleF(in CVolumeShader shader, in vec3 wo, out vec3 wi, out float Pdf, in vec2 U)
+vec3 Microfacet_SampleF(in VolumeShader shader, in vec3 wo, out vec3 wi, out float Pdf, in vec2 U)
 {
   Blinn_SampleF(shader, wo, wi, Pdf, U);
 
@@ -673,7 +662,7 @@ vec3 Microfacet_SampleF(in CVolumeShader shader, in vec3 wo, out vec3 wi, out fl
   return Microfacet_F(shader, wo, wi);
 }
 
-float Microfacet_Pdf(in CVolumeShader shader, in vec3 wo, in vec3 wi)
+float Microfacet_Pdf(in VolumeShader shader, in vec3 wo, in vec3 wi)
 {
   if (!SameHemisphere(wo, wi))
     return 0.0f;
@@ -682,7 +671,7 @@ float Microfacet_Pdf(in CVolumeShader shader, in vec3 wo, in vec3 wi)
 }
 
 // return a xyz color
-vec3 ShaderBsdf_F(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
+vec3 ShaderBsdf_F(in VolumeShader shader, in vec3 Wo, in vec3 Wi)
 {
   vec3 Wol = ShaderBsdf_WorldToLocal(shader, Wo);
   vec3 Wil = ShaderBsdf_WorldToLocal(shader, Wi);
@@ -695,7 +684,7 @@ vec3 ShaderBsdf_F(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
   return R;
 }
 
-float ShaderBsdf_Pdf(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
+float ShaderBsdf_Pdf(in VolumeShader shader, in vec3 Wo, in vec3 Wi)
 {
   vec3 Wol = ShaderBsdf_WorldToLocal(shader, Wo);
   vec3 Wil = ShaderBsdf_WorldToLocal(shader, Wi);
@@ -708,7 +697,7 @@ float ShaderBsdf_Pdf(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
   return Pdf;
 }
 
-vec3 ShaderBsdf_SampleF(in CVolumeShader shader, in CLightingSample S, in vec3 Wo, out vec3 Wi, out float Pdf, in vec2 U)
+vec3 ShaderBsdf_SampleF(in VolumeShader shader, in LightingSample S, in vec3 Wo, out vec3 Wi, out float Pdf, in vec2 U)
 {
   vec3 Wol = ShaderBsdf_WorldToLocal(shader, Wo);
   vec3 Wil = vec3(0,0,0);
@@ -737,7 +726,7 @@ vec3 ShaderBsdf_SampleF(in CVolumeShader shader, in CLightingSample S, in vec3 W
 }
 
 // return a xyz color
-vec3 Shader_F(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
+vec3 Shader_F(in VolumeShader shader, in vec3 Wo, in vec3 Wi)
 {
   if (shader.m_Type == 0) {
     return ShaderBsdf_F(shader, Wo, Wi);
@@ -747,7 +736,7 @@ vec3 Shader_F(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
   }
 }
 
-float Shader_Pdf(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
+float Shader_Pdf(in VolumeShader shader, in vec3 Wo, in vec3 Wi)
 {
   if (shader.m_Type == 0) {
     return ShaderBsdf_Pdf(shader, Wo, Wi);
@@ -757,7 +746,7 @@ float Shader_Pdf(in CVolumeShader shader, in vec3 Wo, in vec3 Wi)
   }
 }
 
-vec3 Shader_SampleF(in CVolumeShader shader, in CLightingSample S, in vec3 Wo, out vec3 Wi, out float Pdf, in vec2 U)
+vec3 Shader_SampleF(in VolumeShader shader, in LightingSample S, in vec3 Wo, out vec3 Wi, out float Pdf, in vec2 U)
 {
   //return vec3(1,0,0);
   if (shader.m_Type == 0) {
@@ -781,7 +770,7 @@ float PowerHeuristic(float nf, float fPdf, float ng, float gPdf)
 }
 
 // "shadow ray" using gStepSizeShadow, test whether it can exit the volume or not
-bool FreePathRM(inout Ray R, inout uvec2 seed)
+bool DoesRayScatterInVolume(inout Ray R, inout uvec2 seed)
 {
   float MinT;
   float MaxT;
@@ -818,7 +807,7 @@ bool FreePathRM(inout Ray R, inout uvec2 seed)
 }
 
 
-int NearestLight(Ray R, out vec3 LightColor, out vec3 Pl, out float oPdf)
+int GetNearestLight(Ray R, out vec3 LightColor, out vec3 Pl, out float oPdf)
 {
   int Hit = -1;
   
@@ -843,7 +832,17 @@ int NearestLight(Ray R, out vec3 LightColor, out vec3 Pl, out float oPdf)
 }
 
 // return a XYZ color
-vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, in CLightingSample LS, in vec3 Wo, in vec3 Pe, in vec3 N, inout uvec2 seed)
+// Wo is direction from scatter point out toward incident ray direction
+
+// Wi goes toward light sample and is not necessarily perfect reflection of Wo
+// ^Wi   ^N    ^Wo
+//  \    |    /
+//   \   |   /
+//    \  |  /
+//     \ | /
+//      \|/ Pe = volume sample where scattering occurs
+//   ---------
+vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, in LightingSample LS, in vec3 Wo, in vec3 Pe, in vec3 N, inout uvec2 seed)
 {
   vec3 Ld = BLACK, Li = BLACK, F = BLACK;
 
@@ -851,41 +850,53 @@ vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, 
   vec3 specular = GetSpecularN(Density, ch);
   float roughness = GetRoughnessN(Density, ch);
 
-  vec3 nu = normalize(cross(N, Wo));
+  // can N and Wo be coincident????
+  vec3 nu = normalize(cross(N, Wo)); 
   vec3 nv = normalize(cross(N, nu));
-  CVolumeShader Shader = CVolumeShader(shaderType, RGBtoXYZ(diffuse), RGBtoXYZ(specular), 2.5f, roughness, N, nu, nv);
+
+  // the IoR here is hard coded... and unused!!!!
+  VolumeShader Shader = VolumeShader(shaderType, RGBtoXYZ(diffuse), RGBtoXYZ(specular), 2.5f, roughness, N, nu, nv);
 
   float LightPdf = 1.0f, ShaderPdf = 1.0f;
   
-
   Ray Rl = Ray(vec3(0,0,0), vec3(0,0,1.0), 0.0, 1500000.0f); 
+  // Rl is ray from light toward Pe in volume, with a max traversal of the distance from Pe to Light sample pos.
   Li = Light_SampleL(light, Pe, Rl, LightPdf, LS);
   
+  // Wi: negate ray direction: from volume scatter point toward light...?
   vec3 Wi = -Rl.m_D, P = vec3(0,0,0);
 
+  
   F = Shader_F(Shader,Wo, Wi); 
 
   ShaderPdf = Shader_Pdf(Shader, Wo, Wi);
 
-  if (!IsBlack(Li) && (ShaderPdf > 0.0f) && (LightPdf > 0.0f) && !FreePathRM(Rl, seed))
+  // see if Rl would scatter in the volume or not (shadow occluder?)
+  if (!IsBlack(Li) && (ShaderPdf > 0.0f) && (LightPdf > 0.0f) && !DoesRayScatterInVolume(Rl, seed))
   {
+    // ray from light can see through to Pe!
+
     float WeightMIS = PowerHeuristic(1.0f, LightPdf, 1.0f, ShaderPdf);
     
     if (shaderType == ShaderType_Brdf){
+      // (use abs or clamp here?)
       Ld += F * Li * abs(dot(Wi, N)) * WeightMIS / LightPdf;
     }
-
     else if (shaderType == ShaderType_Phase){
       Ld += F * Li * WeightMIS / LightPdf;
     }
+
   }
+
+  //return Ld;
 
   F = Shader_SampleF(Shader, LS, Wo, Wi, ShaderPdf, LS.m_bsdfDir);
 
   if (!IsBlack(F) && (ShaderPdf > 0.0f))
   {
     vec3 Pl = vec3(0,0,0);
-    int n = NearestLight(Ray(Pe, Wi, 0.0f, 1000000.0f), Li, Pl, LightPdf);
+    // trace back toward Light, to find true nearest light...?
+    int n = GetNearestLight(Ray(Pe, Wi, 0.0f, 1000000.0f), Li, Pl, LightPdf);
     if (n > -1)
     {
       Light pLight = gLights[n];
@@ -893,11 +904,12 @@ vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, 
 
       if ((LightPdf > 0.0f) && !IsBlack(Li)) {
         Ray rr = Ray(Pl, normalize(Pe - Pl), 0.0f, length(Pe - Pl));
-        if (!FreePathRM(rr, seed))
+        if (!DoesRayScatterInVolume(rr, seed))
         {
           float WeightMIS = PowerHeuristic(1.0f, ShaderPdf, 1.0f, LightPdf);
 
           if (shaderType == ShaderType_Brdf) {
+            // (use abs or clamp here?)
             Ld += F * Li * abs(dot(Wi, N)) * WeightMIS / ShaderPdf;
 
           }
@@ -911,8 +923,8 @@ vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, 
     }
   }
 
-  //return vec3(1,1,1);
   return Ld;
+
 }
 
 // return a linear xyz color
@@ -922,7 +934,7 @@ vec3 UniformSampleOneLight(int shaderType, float Density, int ch, in vec3 Wo, in
   //  return BLACK;
 
   // select a random light, a random 2d sample on light, and a random 2d sample on brdf
-  CLightingSample LS = LightingSample_LargeStep(seed);
+  LightingSample LS = LightingSample_LargeStep(seed);
 
   int WhichLight = int(floor(LS.m_LightNum * float(NUM_LIGHTS)));
 
@@ -932,7 +944,7 @@ vec3 UniformSampleOneLight(int shaderType, float Density, int ch, in vec3 Wo, in
   
 }    
 
-bool SampleDistanceRM(inout Ray R, inout uvec2 seed, out vec3 Ps)
+bool SampleScatteringEvent(inout Ray R, inout uvec2 seed, out vec3 Ps)
 {
   float MinT;
   float MaxT;
@@ -954,16 +966,21 @@ bool SampleDistanceRM(inout Ray R, inout uvec2 seed, out vec3 Ps)
   // importance sampling the exponential function to produce a free path distance S
   // the PDF is p(t) = sigmaT * exp(-sigmaT * t)
   // S is the free-path distance = -ln(1-zeta)/sigmaT where zeta is a random variable
-  float S	= -log(rand(seed)) / gDensityScale;  // note that ln(x:0..1) is negative
-
   // density scale 0... S --> 0..inf.  Low density means randomly sized ray paths
   // density scale inf... S --> 0.   High density means short ray paths!
+  
+  // note that ln(x:0..1) is negative
+  float S	= -log(rand(seed)) / gDensityScale;  
+  
   float Sum		= 0.0f;
   float SigmaT	= 0.0f; // accumulated extinction along ray march
 
+  // start: take one step now.
   MinT += rand(seed) * gStepSize;
+
   int ch = 0;
   float intensity = 0.0;
+  
   // ray march until we have traveled S (or hit the maxT of the ray)
   while (Sum < S)
   {
@@ -974,7 +991,6 @@ bool SampleDistanceRM(inout Ray R, inout uvec2 seed, out vec3 Ps)
     
     intensity = GetNormalizedIntensityMax4ch(Ps, ch);
     SigmaT = gDensityScale * GetOpacity(intensity, ch);
-    //SigmaT = gDensityScale * GetBlendedOpacity(volumedata, GetIntensity4ch(Ps, volumedata));
 
     Sum += SigmaT * gStepSize;
     MinT += gStepSize;
@@ -1008,11 +1024,11 @@ vec4 CalculateRadiance(inout uvec2 seed) {
   float lpdf = 0.0;
   
   // find point Pe along ray Re
-  if (SampleDistanceRM(Re, seed, Pe))
+  if (SampleScatteringEvent(Re, seed, Pe))
   {
     // is there a light between Re.m_O and Pe? (ray's maxT is distance to Pe)
     // (test to see if area light was hit before volume.)
-    int i = NearestLight(Ray(Re.m_O, Re.m_D, 0.0f, length(Pe - Re.m_O)), Li, Pl, lpdf);
+    int i = GetNearestLight(Ray(Re.m_O, Re.m_D, 0.0f, length(Pe - Re.m_O)), Li, Pl, lpdf);
     if (i > -1)
     {
       // set sample pixel value in frame estimate (prior to accumulation)
@@ -1066,7 +1082,7 @@ vec4 CalculateRadiance(inout uvec2 seed) {
     // background color:
     // set Lv to a selected color based on environment light source?
 //    if (uShowLights > 0.0) {
-//      int n = NearestLight(Ray(Re.m_O, Re.m_D, 0.0f, 1000000.0f), Li, Pl, lpdf);
+//      int n = GetNearestLight(Ray(Re.m_O, Re.m_D, 0.0f, 1000000.0f), Li, Pl, lpdf);
 //      if (n > -1)
 //        Lv = Li;  
 //    }
