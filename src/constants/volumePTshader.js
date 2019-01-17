@@ -30,6 +30,7 @@ const vec3 BLACK = vec3(0,0,0);
 const vec3 WHITE = vec3(1.0,1.0,1.0);
 const int ShaderType_Brdf = 0;
 const int ShaderType_Phase = 1;
+const float MAX_RAY_LEN = 1500000.0f;
 
 in vec2 vUv;
 out vec4 out_FragColor;
@@ -241,7 +242,7 @@ Ray GenerateCameraRay(in Camera cam, in vec2 Pixel, in vec2 ApertureRnd)
     RayD = normalize((RayD * cam.m_focalDistance) - LI);
   }
 
-  return Ray(RayO, RayD, 0.0, 1500000.0);
+  return Ray(RayO, RayD, 0.0, MAX_RAY_LEN);
 }
 
 bool IntersectBox(in Ray R, out float pNearT, out float pFarT)
@@ -267,6 +268,8 @@ vec3 PtoVolumeTex(vec3 p) {
 }
 
 const float UINT8_MAX = 1.0;//255.0;
+
+// strategy: sample up to 4 channels, and take the post-LUT maximum intensity as the channel that wins
 float GetNormalizedIntensityMax4ch(in vec3 P, out int ch)
 {
   vec4 intensity = UINT8_MAX * texture(volumeTexture, PtoVolumeTex(P));
@@ -287,14 +290,6 @@ float GetNormalizedIntensityMax4ch(in vec3 P, out int ch)
     }
   }
   return maxIn;
-}
-
-float GetNormalizedIntensity(in vec3 P, in int ch)
-{
-  float intensity = UINT8_MAX * texture(volumeTexture, PtoVolumeTex(P))[ch];
-//  intensity = (intensity - g_intensityMin[ch]) / (g_intensityMax[ch] - g_intensityMin[ch]);
-  intensity = texture(g_lutTexture[ch], vec2(intensity, 0.5)).x;
-  return intensity;
 }
 
 float GetNormalizedIntensity4ch(vec3 P, int ch)
@@ -697,6 +692,7 @@ float ShaderBsdf_Pdf(in VolumeShader shader, in vec3 Wo, in vec3 Wi)
   return Pdf;
 }
 
+
 vec3 ShaderBsdf_SampleF(in VolumeShader shader, in LightingSample S, in vec3 Wo, out vec3 Wi, out float Pdf, in vec2 U)
 {
   vec3 Wol = ShaderBsdf_WorldToLocal(shader, Wo);
@@ -776,8 +772,9 @@ float MISContribution(float pdf1, float pdf2)
   return PowerHeuristic(1.0f, pdf1, 1.0f, pdf2);
 }
 
+
 // "shadow ray" using gStepSizeShadow, test whether it can exit the volume or not
-bool DoesRayScatterInVolume(inout Ray R, inout uvec2 seed)
+bool DoesSecondaryRayScatterInVolume(inout Ray R, inout uvec2 seed)
 {
   float MinT;
   float MaxT;
@@ -813,29 +810,24 @@ bool DoesRayScatterInVolume(inout Ray R, inout uvec2 seed)
   return true;
 }
 
-
-int GetNearestLight(Ray R, out vec3 LightColor, out vec3 Pl, out float oPdf)
+int GetNearestLight(Ray R, out vec3 oLightColor, out vec3 Pl, out float oPdf)
 {
-  int Hit = -1;
-  
+  int hit = -1;
   float T = 0.0f;
-
-  Ray RayCopy = R;
-
-  float Pdf = 0.0f;
+  Ray rayCopy = R;
+  float pdf = 0.0f;
 
   for (int i = 0; i < 2; i++)
   {
-    if (Light_Intersect(gLights[i], RayCopy, T, LightColor, Pdf))
+    if (Light_Intersect(gLights[i], rayCopy, T, oLightColor, pdf))
     {
       Pl = rayAt(R, T);
-      Hit = i;
+      hit = i;
     }
   }
+  oPdf = pdf;
 
-  oPdf = Pdf;
-
-  return Hit;
+  return hit;
 }
 
 // return a XYZ color
@@ -866,7 +858,7 @@ vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, 
 
   float LightPdf = 1.0f, ShaderPdf = 1.0f;
   
-  Ray Rl = Ray(vec3(0,0,0), vec3(0,0,1.0), 0.0, 1500000.0f); 
+  Ray Rl = Ray(vec3(0,0,0), vec3(0,0,1.0), 0.0, MAX_RAY_LEN); 
   // Rl is ray from light toward Pe in volume, with a max traversal of the distance from Pe to Light sample pos.
   Li = Light_SampleL(light, Pe, Rl, LightPdf, LS);
   
@@ -880,7 +872,7 @@ vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, 
   ShaderPdf = Shader_Pdf(Shader, Wo, Wi);
 
   // get a lighting contribution along Rl;  see if Rl would scatter in the volume or not
-  if (!IsBlack(Li) && (ShaderPdf > 0.0f) && (LightPdf > 0.0f) && !DoesRayScatterInVolume(Rl, seed))
+  if (!IsBlack(Li) && (ShaderPdf > 0.0f) && (LightPdf > 0.0f) && !DoesSecondaryRayScatterInVolume(Rl, seed))
   {
     // ray from light can see through volume to Pe!
 
@@ -907,7 +899,7 @@ vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, 
 
       if ((LightPdf > 0.0f) && !IsBlack(Li)) {
         Ray rr = Ray(Pl, normalize(Pe - Pl), 0.0f, length(Pe - Pl));
-        if (!DoesRayScatterInVolume(rr, seed))
+        if (!DoesSecondaryRayScatterInVolume(rr, seed))
         {
           float dotProd = 1.0;
           if (shaderType == ShaderType_Brdf){
@@ -1007,7 +999,7 @@ vec4 CalculateRadiance(inout uvec2 seed) {
 
   vec3 Lv = BLACK, Li = BLACK;
 
-  //Ray Re = Ray(vec3(0,0,0), vec3(0,0,1), 0.0, 1500000.0);
+  //Ray Re = Ray(vec3(0,0,0), vec3(0,0,1), 0.0, MAX_RAY_LEN);
   
   vec2 UV = vUv*uResolution + vec2(rand(seed), rand(seed));
 
@@ -1018,7 +1010,7 @@ vec4 CalculateRadiance(inout uvec2 seed) {
   //return vec4(Re.m_D, 1.0);
 
   //Re.m_MinT = 0.0f; 
-  //Re.m_MaxT = 1500000.0f;
+  //Re.m_MaxT = MAX_RAY_LEN;
 
   vec3 Pe = vec3(0,0,0), Pl = vec3(0,0,0);
   float lpdf = 0.0;
