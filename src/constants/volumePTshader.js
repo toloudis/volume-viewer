@@ -766,7 +766,14 @@ float PowerHeuristic(float nf, float fPdf, float ng, float gPdf)
 {
   float f = nf * fPdf;
   float g = ng * gPdf;
+  // This is the MIS balance heuristic except each component is being squared
+  // balance heuristic would be f/(f+g) ...?
   return (f * f) / (f * f + g * g); 
+}
+
+float MISContribution(float pdf1, float pdf2)
+{
+  return PowerHeuristic(1.0f, pdf1, 1.0f, pdf2);
 }
 
 // "shadow ray" using gStepSizeShadow, test whether it can exit the volume or not
@@ -866,36 +873,32 @@ vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, 
   // Wi: negate ray direction: from volume scatter point toward light...?
   vec3 Wi = -Rl.m_D, P = vec3(0,0,0);
 
-  
+  // we will calculate two lighting contributions and combine them by MIS.
+
   F = Shader_F(Shader,Wo, Wi); 
 
   ShaderPdf = Shader_Pdf(Shader, Wo, Wi);
 
-  // see if Rl would scatter in the volume or not (shadow occluder?)
+  // get a lighting contribution along Rl;  see if Rl would scatter in the volume or not
   if (!IsBlack(Li) && (ShaderPdf > 0.0f) && (LightPdf > 0.0f) && !DoesRayScatterInVolume(Rl, seed))
   {
-    // ray from light can see through to Pe!
+    // ray from light can see through volume to Pe!
 
-    float WeightMIS = PowerHeuristic(1.0f, LightPdf, 1.0f, ShaderPdf);
-    
+    float dotProd = 1.0;
     if (shaderType == ShaderType_Brdf){
+
       // (use abs or clamp here?)
-      Ld += F * Li * abs(dot(Wi, N)) * WeightMIS / LightPdf;
+      dotProd = abs(dot(Wi, N));
     }
-    else if (shaderType == ShaderType_Phase){
-      Ld += F * Li * WeightMIS / LightPdf;
-    }
+    Ld += F * Li * dotProd * MISContribution(LightPdf, ShaderPdf) / LightPdf;
 
   }
 
-  //return Ld;
-
+  // get a lighting contribution by sampling nearest light from the scattering point
   F = Shader_SampleF(Shader, LS, Wo, Wi, ShaderPdf, LS.m_bsdfDir);
-
   if (!IsBlack(F) && (ShaderPdf > 0.0f))
   {
     vec3 Pl = vec3(0,0,0);
-    // trace back toward Light, to find true nearest light...?
     int n = GetNearestLight(Ray(Pe, Wi, 0.0f, 1000000.0f), Li, Pl, LightPdf);
     if (n > -1)
     {
@@ -906,17 +909,14 @@ vec3 EstimateDirectLight(int shaderType, float Density, int ch, in Light light, 
         Ray rr = Ray(Pl, normalize(Pe - Pl), 0.0f, length(Pe - Pl));
         if (!DoesRayScatterInVolume(rr, seed))
         {
-          float WeightMIS = PowerHeuristic(1.0f, ShaderPdf, 1.0f, LightPdf);
-
-          if (shaderType == ShaderType_Brdf) {
+          float dotProd = 1.0;
+          if (shaderType == ShaderType_Brdf){
+      
             // (use abs or clamp here?)
-            Ld += F * Li * abs(dot(Wi, N)) * WeightMIS / ShaderPdf;
-
+            dotProd = abs(dot(Wi, N));
           }
-
-          else if (shaderType == ShaderType_Phase) {
-            Ld += F * Li * WeightMIS / ShaderPdf;
-          }
+          // note order of MIS params is swapped
+          Ld += F * Li * dotProd * MISContribution(ShaderPdf, LightPdf) / ShaderPdf;
         }
 
       }
