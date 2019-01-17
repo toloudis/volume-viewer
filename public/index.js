@@ -16,7 +16,7 @@ view3D.resize(null, 1032, 915);
 
 const dataset = {
     prefixdir: "april/",
-    stages: ["M4", "M5", "M6", "M7"],
+    stages: ["M1", "M2", "M3", "M4", "M5", "M6", "M7"],
     names: ["ACTB", "ACTN1", "CENT2", "DSP", "FBL", "LAMP1", "LMNB1", "MYH10", "PMP34", "SEC61B", "ST6GAL1", "TJP1", "TOMM20", "TUBA1B"],
     types: ["raw", "seg"]
 };
