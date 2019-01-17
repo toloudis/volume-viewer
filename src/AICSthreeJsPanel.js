@@ -17,6 +17,8 @@ export class AICSthreeJsPanel {
     this.canvas.setAttribute('id', 'volumeViewerCanvas');
     this.canvas.height=parentElement.offsetHeight;
     this.canvas.width=parentElement.offsetWidth;
+    
+    this.canvas.style.backgroundColor = "black";
 
     this.containerdiv.appendChild(this.canvas);
     parentElement.appendChild(this.containerdiv);
