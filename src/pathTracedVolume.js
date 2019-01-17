@@ -240,14 +240,14 @@ export default class PathTracedVolume {
           this.screenOutputMesh = new THREE.Mesh(this.screenOutputGeometry, this.screenOutputMaterial);
 
           const GradientDelta = 1.0 / Math.max(sx, Math.max(sy, sz));
-          const InvGradientDelta = 1.0 / GradientDelta;
+          const InvGradientDelta = 1.0 / GradientDelta; // a voxel count...
 
           this.pathTracingUniforms.gGradientDeltaX.value = new THREE.Vector3(GradientDelta, 0, 0);
           this.pathTracingUniforms.gGradientDeltaY.value = new THREE.Vector3(0, GradientDelta, 0);
           this.pathTracingUniforms.gGradientDeltaZ.value = new THREE.Vector3(0, 0, GradientDelta);
           // can this be a per-x,y,z value?
-          this.pathTracingUniforms.gInvGradientDelta.value = InvGradientDelta;
-          this.pathTracingUniforms.gGradientFactor.value = 50.0;
+          this.pathTracingUniforms.gInvGradientDelta.value = InvGradientDelta; // a voxel count
+          this.pathTracingUniforms.gGradientFactor.value = 50.0; // related to voxel counts also
 
           this.pathTracingUniforms.gStepSize.value = 1.0 * GradientDelta;
           this.pathTracingUniforms.gStepSizeShadow.value = 1.0 * GradientDelta;

@@ -1144,7 +1144,8 @@ export function pathTracingUniforms() {
     gGradientDeltaY: { type: "v3", value: new THREE.Vector3(0, 0.01, 0) },
     gGradientDeltaZ: { type: "v3", value: new THREE.Vector3(0, 0, 0.01) },
     gInvGradientDelta: { type: "f", value: 0.0 },
-    gGradientFactor: { type: "f", value: 0.5 },
+    // controls the amount of BRDF-like versus phase-function-like shading
+    gGradientFactor: { type: "f", value: 0.25 },
 
     gCamera: {
       value: {
