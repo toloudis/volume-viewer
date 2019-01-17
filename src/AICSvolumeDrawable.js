@@ -533,6 +533,7 @@ AICSvolumeDrawable.prototype.setVolumeRendering = function(is_pathtrace) {
 
   this.PT = is_pathtrace;
 
+  this.setScale(this.volume.scale);
   this.setBrightness(this.getBrightness());
   this.setDensity(this.getDensity());
 
