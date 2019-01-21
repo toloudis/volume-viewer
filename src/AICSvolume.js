@@ -76,6 +76,12 @@ function AICSvolume(imageInfo) {
   
   this.channel_names = this.imageInfo.channel_names.slice();
   this.channel_colors_default = imageInfo.channel_colors ? imageInfo.channel_colors.slice() : this.channel_names.map((name, index) => getColorByChannelIndex(index));
+  // fill in gaps
+  if (this.channel_colors_default.length < this.num_channels) {
+    for(let i = this.channel_colors_default.length-1; i < this.num_channels; ++i) {
+      this.channel_colors_default[i] = getColorByChannelIndex(i);
+    }
+  }
 
   this.atlasSize = [this.imageInfo.atlas_width, this.imageInfo.atlas_height];
   this.volumeSize = [this.x, this.y, this.z];
