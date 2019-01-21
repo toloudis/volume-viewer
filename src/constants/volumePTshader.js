@@ -762,7 +762,7 @@ float PowerHeuristic(float nf, float fPdf, float ng, float gPdf)
 {
   float f = nf * fPdf;
   float g = ng * gPdf;
-  // This is the MIS balance heuristic except each component is being squared
+  // The power heuristic is Veach's MIS balance heuristic except each component is being squared
   // balance heuristic would be f/(f+g) ...?
   return (f * f) / (f * f + g * g); 
 }
@@ -771,7 +771,6 @@ float MISContribution(float pdf1, float pdf2)
 {
   return PowerHeuristic(1.0f, pdf1, 1.0f, pdf2);
 }
-
 
 // "shadow ray" using gStepSizeShadow, test whether it can exit the volume or not
 bool DoesSecondaryRayScatterInVolume(inout Ray R, inout uvec2 seed)
@@ -786,6 +785,7 @@ bool DoesSecondaryRayScatterInVolume(inout Ray R, inout uvec2 seed)
   MinT = max(MinT, R.m_MinT);
   MaxT = min(MaxT, R.m_MaxT);
 
+  // delta (Woodcock) tracking
   float S	= -log(rand(seed)) / gDensityScale;
   float Sum = 0.0f;
   float SigmaT = 0.0f;
@@ -947,6 +947,9 @@ bool SampleScatteringEvent(inout Ray R, inout uvec2 seed, out vec3 Ps)
   MinT = max(MinT, R.m_MinT);
   MaxT = min(MaxT, R.m_MaxT);
 
+  // delta (Woodcock) tracking
+
+  // notes, not necessarily coherent:
   // ray march along the ray's projected path and keep an average sigmaT value.
   // The distance is weighted by the intensity at each ray step sample. High intensity increases the apparent distance.
   // When the distance has become greater than the average sigmaT value given by -log(RandomFloat[0, 1]) / averageSigmaT 
