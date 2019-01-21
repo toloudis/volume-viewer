@@ -202,7 +202,7 @@ dat.GUI.prototype.removeFolder = function (name) {
     this.__ul.removeChild(folder.domElement.parentNode);
     delete this.__folders[name];
     this.onResize();
-}
+};
 
 function showChannelUI(img) {
 
@@ -225,7 +225,7 @@ function showChannelUI(img) {
         [0.5, 0.8],
         [0.5, 0.8]
     ];
-    myState.channelFolderNames = []
+    myState.channelFolderNames = [];
     for (var i = 0; i < myState.infoObj.channels; ++i) {
         myState.infoObj.channelGui.push({
             colorD: (i < 3) ? initcolors[i] : [255, 255, 255],
@@ -240,7 +240,7 @@ function showChannelUI(img) {
                 return function() {
                     view3D.image.volume.channels[j].lutGenerator_auto2();
                     view3D.updateLuts();
-                }
+                };
             })(i)
         });
         var f = gui.addFolder("Channel " + myState.infoObj.channel_names[i]);
@@ -291,14 +291,14 @@ function showChannelUI(img) {
                 return function (value) {
                     view3D.image.volume.channels[j].lutGenerator_windowLevel(value, myState.infoObj.channelGui[j].level);
                     view3D.updateLuts();
-                }
+                };
             }(i));
 
         f.add(myState.infoObj.channelGui[i], "level").max(1.0).min(0.0).step(0.001).onChange(function (j) {
                 return function (value) {
                     view3D.image.volume.channels[j].lutGenerator_windowLevel(myState.infoObj.channelGui[j].window, value);
                     view3D.updateLuts();
-                }
+                };
             }(i));
         //f.add(myState.infoObj.channelGui[i], 'autoIJ');
         f.add(myState.infoObj.channelGui[i], "roughness").max(100.0).min(0.0).onChange(function (j) {
@@ -311,7 +311,7 @@ function showChannelUI(img) {
                         myState.infoObj.channelGui[j].roughness
                     );
                     view3D.updateMaterial();
-                }
+                };
             }(i));
 
     }
@@ -417,10 +417,10 @@ var d3btn = document.getElementById("3D");
 d3btn.addEventListener("click", ()=>{view3D.setCameraMode('3D');});
 var isRot = false;
 var rotbtn = document.getElementById("rotbtn");
-rotbtn.addEventListener("click", ()=>{isRot = !isRot; view3D.setAutoRotate(isRot)});
+rotbtn.addEventListener("click", ()=>{isRot = !isRot; view3D.setAutoRotate(isRot);});
 var isAxis = false;
 var axisbtn = document.getElementById("axisbtn");
-axisbtn.addEventListener("click", ()=>{isAxis = !isAxis; view3D.setShowAxis(isAxis)});
+axisbtn.addEventListener("click", ()=>{isAxis = !isAxis; view3D.setShowAxis(isAxis);});
 var isPT = false;
 if (view3D.canvas3d.hasWebGL2) {
     var ptbtn = document.createElement("button");
@@ -517,4 +517,27 @@ for (let i = 0; i < dataset.names.length; ++i) {
         })(i) );
     }
 }
+
+function enableChannels(charray) {
+    for (let i = 0; i < dataset.names.length; ++i) {
+        let enabled = (charray.indexOf(dataset.names[i]) > -1);
+        structureCBs[i].checked = enabled;
+
+        myState.structs_enabled[i] = enabled;
+
+        view3D.image.setVolumeChannelEnabled(2 + (i*2), enabled && (myState.selected_seg === 0));
+        view3D.image.setVolumeChannelEnabled(2 + (i*2)+1 , enabled && (myState.selected_seg !== 0));
+    }
+    view3D.updateActiveChannels();
+}
+
+const btnpreset0 = document.getElementById("PRESET_0");
+btnpreset0.addEventListener("click", ()=>{
+    enableChannels(["LMNB1", "TOMM20", "TUBA1B", "MYH10"]);
+});
+const btnpreset1 = document.getElementById("PRESET_1");
+btnpreset1.addEventListener("click", ()=>{
+    enableChannels(["LAMP1", "ST6GAL1", "ACTN1", "FBL"]);
+});
+
 
