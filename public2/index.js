@@ -54,7 +54,12 @@ const myState = {
     zmin: 0.0,
     xmax: 1.0,
     ymax: 1.0,
-    zmax: 1.0
+    zmax: 1.0,
+
+    selected_stage: 0,
+    selected_seg: 0,
+    structs_enabled: [true, true, true, true, true, true, true, true, true, true, true, true, true, true]
+
 };
 let gui = null;
 
@@ -318,9 +323,9 @@ function toggle_raw_seg(raw_or_seg) {
     view3D.image.setVolumeChannelEnabled(0, false);
     view3D.image.setVolumeChannelEnabled(1, false);
 
-    // channel index is i + 2 to skip membrane and nuc ?
-    for (let i = 2; i < dataset.names.length * dataset.types.length + 2; ++i) {
-        view3D.image.setVolumeChannelEnabled(i, (i)%2 === raw_or_seg ? true : false);
+    for (let i = 0; i < dataset.names.length; ++i) {
+        view3D.image.setVolumeChannelEnabled(2 + (i*2), !raw_or_seg && myState.structs_enabled[i]);
+        view3D.image.setVolumeChannelEnabled(2 + (i*2)+1, raw_or_seg && myState.structs_enabled[i]);
     }
     view3D.updateActiveChannels();
 }
@@ -377,7 +382,7 @@ function loadImageData(jsondata, volumedata) {
                 // tell the viewer about the image
                 view3D.setImage(aimg);
                 
-                toggle_raw_seg(selected_seg);
+                toggle_raw_seg(myState.selected_seg);
 
                 view3D.updateActiveChannels();
                 //aimg.setChannelAsMask(5);
@@ -437,7 +442,6 @@ setupGui();
 
 // switch the uncommented line to test with volume data or atlas data
 var stageselecter = document.getElementById("phaseselecter");
-var structureselecter = document.getElementById("structureselecter");
 var rawselecter = document.getElementById("rawselecter");
 
 function loadnewcell(stage, structure, raw) {
@@ -460,53 +464,57 @@ function loadnewcell(stage, structure, raw) {
 }
 
 // initial cell
-loadnewcell(stageselecter.value, structureselecter.value, rawselecter.value);
+loadnewcell(stageselecter.value, "", rawselecter.value);
 
 
 // arrow key implementation
-let selected_name = 0;
-let selected_stage = 0;
-let selected_seg = 0;
 document.addEventListener('keydown', function(event) {
-    if (event.code == 'ArrowDown') {
-        selected_name = (selected_name + dataset.names.length + 1) % dataset.names.length;
-        structureselecter.value=dataset.names[selected_name];
+    if (event.code === 'ArrowLeft') {
+        myState.selected_stage = (myState.selected_stage + dataset.stages.length - 1) % dataset.stages.length;
+        stageselecter.value=dataset.stages[myState.selected_stage];
+        loadnewcell(stageselecter.value, "", rawselecter.value);
     }
-    if (event.code == 'ArrowUp') {
-        selected_name = (selected_name + dataset.names.length - 1) % dataset.names.length;
-        structureselecter.value=dataset.names[selected_name];
+    if (event.code === 'ArrowRight') {
+        myState.selected_stage = (myState.selected_stage + dataset.stages.length + 1) % dataset.stages.length;
+        stageselecter.value=dataset.stages[myState.selected_stage];
+        loadnewcell(stageselecter.value, "", rawselecter.value);
     }
-    if (event.code == 'ArrowLeft') {
-        selected_stage = (selected_stage + dataset.stages.length - 1) % dataset.stages.length;
-        stageselecter.value=dataset.stages[selected_stage];
-        loadnewcell(stageselecter.value, structureselecter.value, rawselecter.value);
-    }
-    if (event.code == 'ArrowRight') {
-        selected_stage = (selected_stage + dataset.stages.length + 1) % dataset.stages.length;
-        stageselecter.value=dataset.stages[selected_stage];
-        loadnewcell(stageselecter.value, structureselecter.value, rawselecter.value);
-    }
-    if (event.code == 'KeyS') {
-        selected_seg = 1 - selected_seg;
-        rawselecter.value = dataset.types[selected_seg];
-        toggle_raw_seg(selected_seg);
+    if (event.code === 'KeyS') {
+        myState.selected_seg = 1 - myState.selected_seg;
+        rawselecter.value = dataset.types[myState.selected_seg];
+        toggle_raw_seg(myState.selected_seg);
     }
 });
 
 // combo box implementation
 stageselecter.addEventListener("change", (e)=> {
-    loadnewcell(stageselecter.value, structureselecter.value, rawselecter.value);
-    selected_stage = dataset.stages.indexOf(stageselecter.value);
+    loadnewcell(stageselecter.value, "", rawselecter.value);
+    myState.selected_stage = dataset.stages.indexOf(stageselecter.value);
     stageselecter.blur();
 });
-structureselecter.addEventListener("change", (e)=> {
-    //loadnewcell(stageselecter.value, structureselecter.value, rawselecter.value);
-    selected_name = dataset.names.indexOf(structureselecter.value);
-    structureselecter.blur();
-});
 rawselecter.addEventListener("change", (e)=> {
-    selected_seg = dataset.types.indexOf(rawselecter.value);
+    myState.selected_seg = dataset.types.indexOf(rawselecter.value);
     rawselecter.blur();
-    toggle_raw_seg(selected_seg);
+    toggle_raw_seg(myState.selected_seg);
 });
+
+const structureCBs = [];
+for (let i = 0; i < dataset.names.length; ++i) {
+    const cb = document.getElementById(dataset.names[i]);
+    if (cb) {
+        structureCBs[i] = cb;
+        cb.addEventListener("change", (function(j) {
+            return (e) => {
+                myState.structs_enabled[j] = structureCBs[j].checked;
+                if (myState.selected_seg === 0) {
+                    view3D.image.setVolumeChannelEnabled(2 + (j*2), structureCBs[j].checked);
+                }
+                else {
+                    view3D.image.setVolumeChannelEnabled(2 + (j*2) + 1, structureCBs[j].checked);
+                }
+                view3D.updateActiveChannels();
+            };
+        })(i) );
+    }
+}
 

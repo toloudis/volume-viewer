@@ -15,33 +15,37 @@
         <option value="M6">M6</option>
         <option value="M7">M7</option>
     </select>
-    Structure:<select id="structureselecter" name="structure">
-        <option selected value="ACTB">ACTB</option>
-        <option value="ACTN1">ACTN1</option>
-        <option value="CENT2">CENT2</option>
-        <option value="DSP">DSP</option>
-        <option value="FBL">FBL</option>
-        <option value="LAMP1">LAMP1</option>
-        <option value="LMNB1">LMNB1</option>
-        <option value="MYH10">MYH10</option>
-        <option value="PMP34">PMP34</option>
-        <option value="SEC61B">SEC61B</option>
-        <option value="ST6GAL1">ST6GAL1</option>
-        <option value="TJP1">TJP1</option>
-        <option value="TOMM20">TOMM20</option>
-        <option value="TUBA1B">TUBA1B</option>
-    </select>
     Raw/Seg:<select id="rawselecter" name="raw">
         <option selected value="raw">raw</option>
         <option value="seg">seg</option>
     </select>
     <br/>
-    <div id="volume-viewer" height="1032px" width="915px"></div>
-    <button id="X">X</button>
-    <button id="Y">Y</button>
-    <button id="Z">Z</button>
-    <button id="3D">3D</button>
-    <button id="rotbtn">Turntable</button>
-    <button id="axisbtn">Axis</button>
+    <div style="display:grid; grid-template-areas:'left right'; grid-auto-columns:10% 90%; grid-auto-rows:min-content;">
+        <ul style="grid-area:left; list-style:none;">
+            <li><input type="checkbox" id="ACTB" value="1" checked/><label>ACTB</label></li>
+            <li><input type="checkbox" id="ACTN1" value="1" checked/><label>ACTN1</label></li>
+            <li><input type="checkbox" id="CENT2" value="1" checked/><label>CENT2</label></li>
+            <li><input type="checkbox" id="DSP" value="1" checked/><label>DSP</label></li>
+            <li><input type="checkbox" id="FBL" value="1" checked/><label>FBL</label></li>
+            <li><input type="checkbox" id="LAMP1" value="1" checked/><label>LAMP1</label></li>
+            <li><input type="checkbox" id="LMNB1" value="1" checked/><label>LMNB1</label></li>
+            <li><input type="checkbox" id="MYH10" value="1" checked/><label>MYH10</label></li>
+            <li><input type="checkbox" id="PMP34" value="1" checked/><label>PMP34</label></li>
+            <li><input type="checkbox" id="SEC61B" value="1" checked/><label>SEC61B</label></li>
+            <li><input type="checkbox" id="ST6GAL1" value="1" checked/><label>ST6GAL1</label></li>
+            <li><input type="checkbox" id="TJP1" value="1" checked/><label>TJP1</label></li>
+            <li><input type="checkbox" id="TOMM20" value="1" checked/><label>TOMM20</label></li>
+            <li><input type="checkbox" id="TUBA1B" value="1" checked/><label>TUBA1B</label></li>
+        </ul>
+        <div style="grid-area:right;">
+            <div id="volume-viewer" height="1032px" width="915px"></div>
+            <button id="X">X</button>
+            <button id="Y">Y</button>
+            <button id="Z">Z</button>
+            <button id="3D">3D</button>
+            <button id="rotbtn">Turntable</button>
+            <button id="axisbtn">Axis</button>
+        </div>
+    </div>
 </body>
 </html>
