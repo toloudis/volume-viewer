@@ -1,9 +1,11 @@
 import {
     AICSview3d,
-    AICSview3d_PT,
     AICSvolumeDrawable,
     AICSmakeVolumes,
-    AICSvolumeLoader
+    AICSvolumeLoader,
+    Light,
+    AREA_LIGHT,
+    SKY_LIGHT
 } from '../src';
 
 let el = document.getElementById("volume-viewer");
@@ -32,18 +34,21 @@ const myState = {
     aperture: 0.0,
     fov: 20,
     focal_distance: 4.0,
+
+    lights: [new Light(SKY_LIGHT), new Light(AREA_LIGHT)],
+
     skyTopIntensity: 0.5,
     skyMidIntensity: 1.25,
     skyBotIntensity: 0.5,
     skyTopColor: [255, 255, 255],
     skyMidColor: [255, 255, 255],
     skyBotColor: [255, 255, 255],
+
     lightColor: [255, 255, 255],
     lightIntensity: 50.0,
-    lightDistance: 10.0,
     lightTheta: 0.0,
     lightPhi: 0.0,
-    lightSize: 1.0,
+    
     xmin: 0.0,
     ymin: 0.0,
     zmin: 0.0,
@@ -101,40 +106,84 @@ function setupGui() {
 
     var lighting = gui.addFolder("Lighting");
     lighting.addColor(myState, "skyTopColor").name("Sky Top").onChange(function (value) {
-        view3D.updateLights(myState);
+        myState.lights[0].m_colorTop = new THREE.Vector3(
+            myState.skyTopColor[0]/255.0*myState.skyTopIntensity,
+            myState.skyTopColor[1]/255.0*myState.skyTopIntensity,
+            myState.skyTopColor[2]/255.0*myState.skyTopIntensity
+        );
+        view3D.updateLights(myState.lights);
     });
     lighting.add(myState, "skyTopIntensity").max(100.0).min(0.01).step(0.1).onChange(function (value) {
-        view3D.updateLights(myState);
+        myState.lights[0].m_colorTop = new THREE.Vector3(
+            myState.skyTopColor[0]/255.0*myState.skyTopIntensity,
+            myState.skyTopColor[1]/255.0*myState.skyTopIntensity,
+            myState.skyTopColor[2]/255.0*myState.skyTopIntensity
+        );
+        view3D.updateLights(myState.lights);
     });
     lighting.addColor(myState, "skyMidColor").name("Sky Mid").onChange(function (value) {
-        view3D.updateLights(myState);
+        myState.lights[0].m_colorMiddle = new THREE.Vector3(
+            myState.skyMidColor[0]/255.0*myState.skyMidIntensity,
+            myState.skyMidColor[1]/255.0*myState.skyMidIntensity,
+            myState.skyMidColor[2]/255.0*myState.skyMidIntensity
+        );
+        view3D.updateLights(myState.lights);
     });
     lighting.add(myState, "skyMidIntensity").max(100.0).min(0.01).step(0.1).onChange(function (value) {
-        view3D.updateLights(myState);
+        myState.lights[0].m_colorMiddle = new THREE.Vector3(
+            myState.skyMidColor[0]/255.0*myState.skyMidIntensity,
+            myState.skyMidColor[1]/255.0*myState.skyMidIntensity,
+            myState.skyMidColor[2]/255.0*myState.skyMidIntensity
+        );
+        view3D.updateLights(myState.lights);
     });
     lighting.addColor(myState, "skyBotColor").name("Sky Bottom").onChange(function (value) {
-        view3D.updateLights(myState);
+        myState.lights[0].m_colorBottom = new THREE.Vector3(
+            myState.skyBotColor[0]/255.0*myState.skyBotIntensity,
+            myState.skyBotColor[1]/255.0*myState.skyBotIntensity,
+            myState.skyBotColor[2]/255.0*myState.skyBotIntensity
+        );
+        view3D.updateLights(myState.lights);
     });
     lighting.add(myState, "skyBotIntensity").max(100.0).min(0.01).step(0.1).onChange(function (value) {
-        view3D.updateLights(myState);
+        myState.lights[0].m_colorBottom = new THREE.Vector3(
+            myState.skyBotColor[0]/255.0*myState.skyBotIntensity,
+            myState.skyBotColor[1]/255.0*myState.skyBotIntensity,
+            myState.skyBotColor[2]/255.0*myState.skyBotIntensity
+        );
+        view3D.updateLights(myState.lights);
     });
-    lighting.add(myState, "lightDistance").max(10.0).min(0.0).step(0.1).onChange(function (value) {
-        view3D.updateLights(myState);
+    lighting.add(myState.lights[1], "m_distance").max(10.0).min(0.0).step(0.1).onChange(function (value) {
+        view3D.updateLights(myState.lights);
     });
     lighting.add(myState, "lightTheta").max(180.0).min(-180.0).step(1).onChange(function (value) {
-        view3D.updateLights(myState);
+        myState.lights[1].m_theta = value * 3.14159265 / 180.0;
+        view3D.updateLights(myState.lights);
     });
     lighting.add(myState, "lightPhi").max(180.0).min(0.0).step(1).onChange(function (value) {
-        view3D.updateLights(myState);
+        myState.lights[1].m_phi = value * 3.14159265 / 180.0;
+        view3D.updateLights(myState.lights);
     });
-    lighting.add(myState, "lightSize").max(100.0).min(0.01).step(0.1).onChange(function (value) {
-        view3D.updateLights(myState);
+    lighting.add(myState.lights[1], "m_width").max(100.0).min(0.01).step(0.1).onChange(function (value) {
+        myState.lights[1].m_width = value;
+        myState.lights[1].m_height = value;
+        view3D.updateLights(myState.lights);
     });
     lighting.add(myState, "lightIntensity").max(1000.0).min(0.01).step(0.1).onChange(function (value) {
-        view3D.updateLights(myState);
+        myState.lights[1].m_color = new THREE.Vector3(
+            myState.lightColor[0]/255.0*myState.lightIntensity,
+            myState.lightColor[1]/255.0*myState.lightIntensity,
+            myState.lightColor[2]/255.0*myState.lightIntensity
+        );
+        view3D.updateLights(myState.lights);
     });
     lighting.addColor(myState, "lightColor").name("lightcolor").onChange(function (value) {
-        view3D.updateLights(myState);
+        myState.lights[1].m_color = new THREE.Vector3(
+            myState.lightColor[0]/255.0*myState.lightIntensity,
+            myState.lightColor[1]/255.0*myState.lightIntensity,
+            myState.lightColor[2]/255.0*myState.lightIntensity
+        );
+        view3D.updateLights(myState.lights);
     });
 
 }
@@ -170,7 +219,7 @@ function showChannelUI(img) {
         [0.5, 0.5],
         [0.5, 0.8],
         [0.5, 0.8]
-    ]
+    ];
     myState.channelFolderNames = []
     for (var i = 0; i < myState.infoObj.channels; ++i) {
         myState.infoObj.channelGui.push({
@@ -334,7 +383,14 @@ function loadImageData(jsondata, volumedata) {
                 //aimg.setChannelAsMask(5);
                 //aimg.setMaskAlpha(1.0);
                 view3D.updateLuts();
-                view3D.updateLights(myState);
+                view3D.updateLights(myState.lights);
+                if (rawselecter.value === "seg") {
+                    view3D.updateDensity(myState.density);
+                    //aimg.setDensity(0.32);
+                }
+                else {
+                    view3D.updateDensity(myState.density);
+                }
             }
 
         });
@@ -343,13 +399,6 @@ function loadImageData(jsondata, volumedata) {
     //showChannelUI(aimg);
 
     //view3D.setCameraMode('3D');
-    if (rawselecter.value === "seg") {
-        aimg.setDensity(myState.density);
-        //aimg.setDensity(0.32);
-    }
-    else {
-        aimg.setDensity(myState.density);
-    }
     aimg.setBrightness(myState.exposure);
 }
 
@@ -378,7 +427,7 @@ if (view3D.canvas3d.hasWebGL2) {
     ptbtn.addEventListener("click", ()=>{
         isPT = !isPT; 
         view3D.setPathTrace(isPT);
-        view3D.updateLights(myState);
+        view3D.updateLights(myState.lights);
     });
 
     axisbtn.parentNode.insertBefore(ptbtn, axisbtn.nextSibling);

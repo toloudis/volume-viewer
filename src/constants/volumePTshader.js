@@ -1,3 +1,5 @@
+import { Light, AREA_LIGHT, SKY_LIGHT } from "../light";
+
 // threejs passthrough vertex shader for fullscreen quad
 export const pathTracingVertexShaderSrc = `
 #version 300 es
@@ -1157,50 +1159,7 @@ export function pathTracingUniforms() {
     },
     gLights: {
       value: [
-        {
-          m_theta: 0.0,
-          m_phi: 0.0,
-          m_width: 10.0,
-          m_halfWidth: 5.0,
-          m_height: 10.0,
-          m_halfHeight: 5.0,
-          m_distance: 10.0,
-          m_skyRadius: 1000.0,
-          m_P: new THREE.Vector3(),
-          m_target: new THREE.Vector3(),
-          m_N: new THREE.Vector3(),
-          m_U: new THREE.Vector3(),
-          m_V: new THREE.Vector3(),
-          m_area: 100.0,
-          m_areaPdf: 0.01, // 1./area
-          m_color: new THREE.Vector3(1,1,1),
-          m_colorTop: new THREE.Vector3(1,0,0),
-          m_colorMiddle: new THREE.Vector3(1,1,1),
-          m_colorBottom: new THREE.Vector3(0,0,1),
-          m_T: 1 // sky light
-        },
-        {
-          m_theta: 0.0,
-          m_phi: 0.0,
-          m_width: 1.0,
-          m_halfWidth: 5.0,
-          m_height: 1.0,
-          m_halfHeight: 5.0,
-          m_distance: 10.0,
-          m_skyRadius: 1000.0,
-          m_P: new THREE.Vector3(),
-          m_target: new THREE.Vector3(),
-          m_N: new THREE.Vector3(),
-          m_U: new THREE.Vector3(),
-          m_V: new THREE.Vector3(),
-          m_area: 100.0,
-          m_areaPdf: 0.01, // 1/area
-          m_color: new THREE.Vector3(1,1,1),
-          m_colorTop: new THREE.Vector3(1,0,0),
-          m_colorMiddle: new THREE.Vector3(1,1,1),
-          m_colorBottom: new THREE.Vector3(0,0,1),
-          m_T: 0 // area light
-        }
+        new Light(SKY_LIGHT), new Light(AREA_LIGHT)
       ]
     },
     

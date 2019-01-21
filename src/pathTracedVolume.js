@@ -585,31 +585,18 @@ export default class PathTracedVolume {
       }
     
       updateLights(state) {
-        // 0th light in gLights array is sphere light
-        // 1st light in gLights array is area light
-        this.pathTracingUniforms.gLights.value[0].m_colorTop = new THREE.Vector3(
-          state.skyTopIntensity*state.skyTopColor[0]/255.0,
-          state.skyTopIntensity*state.skyTopColor[1]/255.0,
-          state.skyTopIntensity*state.skyTopColor[2]/255.0);
-        this.pathTracingUniforms.gLights.value[0].m_colorMiddle = new THREE.Vector3(
-          state.skyMidIntensity*state.skyMidColor[0]/255.0,
-          state.skyMidIntensity*state.skyMidColor[1]/255.0,
-          state.skyMidIntensity*state.skyMidColor[2]/255.0);
-        this.pathTracingUniforms.gLights.value[0].m_colorBottom = new THREE.Vector3(
-          state.skyBotIntensity*state.skyBotColor[0]/255.0,
-          state.skyBotIntensity*state.skyBotColor[1]/255.0,
-          state.skyBotIntensity*state.skyBotColor[2]/255.0);
+        // 0th light in state array is sphere light
+        this.pathTracingUniforms.gLights.value[0].m_colorTop = new THREE.Vector3().copy(state[0].m_colorTop);
+        this.pathTracingUniforms.gLights.value[0].m_colorMiddle = new THREE.Vector3().copy(state[0].m_colorMiddle);
+        this.pathTracingUniforms.gLights.value[0].m_colorBottom = new THREE.Vector3().copy(state[0].m_colorBottom);
     
-    
-        this.pathTracingUniforms.gLights.value[1].m_color = new THREE.Vector3(
-          state.lightIntensity*state.lightColor[0]/255.0,
-          state.lightIntensity*state.lightColor[1]/255.0,
-          state.lightIntensity*state.lightColor[2]/255.0);
-        this.pathTracingUniforms.gLights.value[1].m_theta = state.lightTheta * 3.14159265/180.0; 
-        this.pathTracingUniforms.gLights.value[1].m_phi = state.lightPhi * 3.14159265/180.0; 
-        this.pathTracingUniforms.gLights.value[1].m_distance = state.lightDistance; 
-        this.pathTracingUniforms.gLights.value[1].m_width = state.lightSize; 
-        this.pathTracingUniforms.gLights.value[1].m_height = state.lightSize; 
+        // 1st light in state array is area light
+        this.pathTracingUniforms.gLights.value[1].m_color = new THREE.Vector3().copy(state[1].m_color);
+        this.pathTracingUniforms.gLights.value[1].m_theta = state[1].m_theta; 
+        this.pathTracingUniforms.gLights.value[1].m_phi = state[1].m_phi; 
+        this.pathTracingUniforms.gLights.value[1].m_distance = state[1].m_distance; 
+        this.pathTracingUniforms.gLights.value[1].m_width = state[1].m_width; 
+        this.pathTracingUniforms.gLights.value[1].m_height = state[1].m_height; 
     
         this.updateLightsSecondary();
     
@@ -623,36 +610,7 @@ export default class PathTracedVolume {
     
         for (let i = 0; i < 2; ++i) {
           let lt = this.pathTracingUniforms.gLights.value[i];
-          lt.m_halfWidth = 0.5 * lt.m_width;
-          lt.m_halfHeight = 0.5 * lt.m_height;
-          lt.m_target.copy(bbctr);
-    
-          // Determine light position
-          lt.m_P.x = lt.m_distance * Math.cos(lt.m_phi) * Math.sin(lt.m_theta);
-          lt.m_P.z = lt.m_distance * Math.cos(lt.m_phi) * Math.cos(lt.m_theta);
-          lt.m_P.y = lt.m_distance * Math.sin(lt.m_phi);
-    
-          lt.m_P.add(lt.m_target);
-    
-          // Determine area
-          if (lt.m_T === 0) {
-            lt.m_area = lt.m_width * lt.m_height;
-            lt.m_areaPdf = 1.0 / lt.m_area;
-          }
-    
-          else if (lt.m_T === 1) {
-            lt.m_P.copy(bbctr);
-            // shift by nonzero amount
-            lt.m_target.addVectors(lt.m_P, new THREE.Vector3(0.0, 0.0, 1.0));
-            lt.m_skyRadius = 1000.0 * bbctr.length() * 2.0;
-            lt.m_area = 4.0 * Math.PI * Math.pow(lt.m_skyRadius, 2.0);
-            lt.m_areaPdf = 1.0 / lt.m_area;
-          }
-    
-          // Compute orthogonal basis frame
-          lt.m_N.subVectors(lt.m_target, lt.m_P).normalize();
-          lt.m_U.crossVectors(lt.m_N, new THREE.Vector3(0.0, 1.0, 0.0)).normalize();
-          lt.m_V.crossVectors(lt.m_N, lt.m_U).normalize();
+          lt.update(bbctr);
         }
     
       }

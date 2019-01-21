@@ -1,13 +1,15 @@
 import {AICSview3d} from './AICSview3d.js';
-import {AICSview3d_PT} from './AICSview3dPathTracer.js';
 import AICSvolumeDrawable from './AICSvolumeDrawable.js';
 import AICSmakeVolumes from './AICSmakeVolumes.js';
 import AICSvolumeLoader from './volumeLoader.js';
+import {Light, AREA_LIGHT, SKY_LIGHT} from './light.js';
 
 export {
   AICSview3d,
-  AICSview3d_PT,
   AICSvolumeDrawable,
   AICSmakeVolumes,
-  AICSvolumeLoader
+  AICSvolumeLoader,
+  Light,
+  AREA_LIGHT,
+  SKY_LIGHT
 };
