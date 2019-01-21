@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" height="100%" width="100%">
+<head>
+    <meta charset="UTF-8">
+    <title>AICS 3D Volume Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.3/dat.gui.js"></script>
+</head>
+<body height="100%" width="100%">
+    Phase:<select id="phaseselecter" name="phase">
+        <option selected value="M1">M1</option>
+        <option value="M2">M2</option>
+        <option value="M3">M3</option>
+        <option value="M4">M4</option>
+        <option value="M5">M5</option>
+        <option value="M6">M6</option>
+        <option value="M7">M7</option>
+    </select>
+    Structure:<select id="structureselecter" name="structure">
+        <option selected value="ACTB">ACTB</option>
+        <option value="ACTN1">ACTN1</option>
+        <option value="CENT2">CENT2</option>
+        <option value="DSP">DSP</option>
+        <option value="FBL">FBL</option>
+        <option value="LAMP1">LAMP1</option>
+        <option value="LMNB1">LMNB1</option>
+        <option value="MYH10">MYH10</option>
+        <option value="PMP34">PMP34</option>
+        <option value="SEC61B">SEC61B</option>
+        <option value="ST6GAL1">ST6GAL1</option>
+        <option value="TJP1">TJP1</option>
+        <option value="TOMM20">TOMM20</option>
+        <option value="TUBA1B">TUBA1B</option>
+    </select>
+    Raw/Seg:<select id="rawselecter" name="raw">
+        <option selected value="raw">raw</option>
+        <option value="seg">seg</option>
+    </select>
+    <br/>
+    <div id="volume-viewer" height="1032px" width="915px"></div>
+    <button id="X">X</button>
+    <button id="Y">Y</button>
+    <button id="Z">Z</button>
+    <button id="3D">3D</button>
+    <button id="rotbtn">Turntable</button>
+    <button id="axisbtn">Axis</button>
+</body>
+</html>
