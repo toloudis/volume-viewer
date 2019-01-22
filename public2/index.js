@@ -30,7 +30,7 @@ const myState = {
     file: "",
     density: 50.0,
     maskAlpha: 1.0,
-    exposure: 0.75,
+    exposure: 0.9,
     aperture: 0.0,
     fov: 20,
     focal_distance: 4.0,
@@ -330,6 +330,10 @@ function toggle_raw_seg(raw_or_seg) {
         view3D.image.setVolumeChannelEnabled(2 + (i*2)+1, raw_or_seg && myState.structs_enabled[i]);
     }
     view3D.updateActiveChannels();
+
+    myState.density = raw_or_seg ? 50.0 : 7.0;
+    view3D.updateDensity(myState.density);
+
 }
 
 function enableChannels(charray) {
@@ -360,13 +364,7 @@ function switchToImage(aimg) {
     //aimg.setMaskAlpha(1.0);
     view3D.updateLuts();
     view3D.updateLights(myState.lights);
-    if (myState.selected_seg) {
-        view3D.updateDensity(myState.density);
-        //aimg.setDensity(0.32);
-    }
-    else {
-        view3D.updateDensity(myState.density);
-    }
+    view3D.updateExposure(myState.exposure);
 
     return true;
 }
@@ -435,7 +433,7 @@ function loadImageData(jsondata, onFullyLoaded) {
     //showChannelUI(aimg);
 
     //view3D.setCameraMode('3D');
-    aimg.setBrightness(myState.exposure);
+    //aimg.setBrightness(myState.exposure);
 }
 
 var xbtn = document.getElementById("X");
