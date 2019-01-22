@@ -52,6 +52,15 @@ AICSchannel.prototype.getIntensity = function(x,y,z) {
   return this.volumeData[x + y*(this.dims[0]) + z*(this.dims[0]*this.dims[1])];
 };
 
+// how to index into tiled texture atlas
+AICSchannel.prototype.getIntensityFromAtlas = function(x,y,z) {
+  const num_xtiles = this.imgData.width / this.dims[0];
+  const tilex = z % num_xtiles;
+  const tiley = Math.floor(z / num_xtiles);
+  const offset = tilex*this.dims[0] + x + (tiley*this.dims[1] + y)*this.imgData.width;
+  return this.imgData.data[offset];
+};
+
 // give the channel fresh data and initialize from that data
 // data is formatted as a texture atlas where each tile is a z slice of the volume
 AICSchannel.prototype.setBits = function(bitsArray, w, h) {
