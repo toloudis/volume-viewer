@@ -373,7 +373,10 @@ function loadImageData(jsondata, volumedata) {
 
             if (aimg.volume.loaded) {
                 // tell the viewer about the image
-                view3D.setImage(aimg);
+                const old_img = view3D.setImage(aimg);
+                if (old_img) {
+                    old_img.cleanup();
+                }
 
                 view3D.updateActiveChannels();
                 //aimg.setChannelAsMask(5);
