@@ -395,20 +395,20 @@ function loadImageData(jsondata, onFullyLoaded) {
     jsondata.pixel_size_x = 1.0;
     jsondata.pixel_size_y = 1.0;
     jsondata.pixel_size_z = 2.9;
-    if (rawselecter.value === "seg") {
-        jsondata.channel_colors = [
-            [50, 0, 50],
-            [0, 255, 255],
-            [255, 255, 255]
-        ];
-    }
-    else {
-        jsondata.channel_colors = [
-            [128, 0, 128],
-            [0, 255, 255],
-            [255, 255, 255]
-        ];
-    }
+    // if (rawselecter.value === "seg") {
+    //     jsondata.channel_colors = [
+    //         [128, 0, 128],
+    //         [0, 255, 255],
+    //         [255, 255, 255]
+    //     ];
+    // }
+    // else {
+    //     jsondata.channel_colors = [
+    //         [128, 0, 128],
+    //         [0, 255, 255],
+    //         [255, 255, 255]
+    //     ];
+    // }
 
     const aimg = new AICSvolumeDrawable(jsondata, isPT);
     AICSvolumeLoader.loadVolumeAtlasData(jsondata.images, (url, channelIndex, atlasdata, atlaswidth, atlasheight) => {
