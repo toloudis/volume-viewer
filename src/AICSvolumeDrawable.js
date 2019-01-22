@@ -301,7 +301,7 @@ AICSvolumeDrawable.prototype.onChannelLoaded = function(batch) {
   this.volumeRendering.onChannelData(batch);
   this.meshVolume.onChannelData(batch);
 
-  this.fuse();
+  //this.fuse();
 
   // let the outside world have a chance
   if (this.onChannelDataReadyCallback) {

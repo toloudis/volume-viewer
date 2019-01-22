@@ -42,7 +42,7 @@ export class AICSview3d {
     this.canvas3d.rerender();
   };
 
-  destroyImage() {
+  unsetImage() {
     if (this.image) {
       this.canvas3d.removeControlHandlers();
       this.canvas3d.onLeaveVR();
@@ -50,17 +50,16 @@ export class AICSview3d {
       this.canvas3d.onLeaveVRCallback = null;
       this.canvas3d.animate_funcs = [];
       this.scene.remove(this.image.sceneRoot);
-      this.image.cleanup();
-      this.image = null;
     }
+    return this.image;
   }
 
   /**
-   * Add a new volume image to the viewer.  The viewer currently only supports a single image at a time, and will destroy any prior existing image.
+   * Add a new volume image to the viewer.  The viewer currently only supports a single image at a time, and will return any prior existing image.
    * @param {AICSvolumeDrawable} img 
    */
   setImage(img) {
-    this.destroyImage();
+    const oldImage = this.unsetImage();
 
     this.image = img;
 
@@ -93,6 +92,8 @@ export class AICSview3d {
 
     // start draw loop
     this.canvas3d.rerender();
+
+    return oldImage;
   };
 
   buildScene() {
