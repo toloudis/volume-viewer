@@ -25,6 +25,15 @@ const dataset = {
 function make_name(stage, name, type) {
     return "COMP_" + stage + "_atlas.json";
 }
+function getChannelIndexOfStructure(ms) {
+    if (ms === "NUC") {
+        return 1;
+    }
+    if (ms === "MEM") {
+        return 0;
+    }
+    return dataset.names.indexOf(ms) * 2 + 2;
+}
 
 const myState = {
     file: "",
@@ -60,7 +69,14 @@ const myState = {
     selected_seg: 0,
     structs_enabled: [true, true, true, true, true, true, true, true, true, true, true, true, true, true],
 
-    loadedImages: {}
+    loadedImages: {},
+
+    m7: {
+        windowMT: 0.455,
+        levelMT: 0.598,
+        windowNuc: 0.488,
+        levelNuc: 0.885
+    }
 
 };
 let gui = null;
@@ -346,6 +362,10 @@ function enableChannels(charray) {
         view3D.image.setVolumeChannelEnabled(2 + (i*2), enabled && (myState.selected_seg === 0));
         view3D.image.setVolumeChannelEnabled(2 + (i*2)+1 , enabled && (myState.selected_seg !== 0));
     }
+
+    view3D.image.setVolumeChannelEnabled(0, charray.indexOf("MEM") > -1);
+    view3D.image.setVolumeChannelEnabled(1, charray.indexOf("NUC") > -1);
+
     view3D.updateActiveChannels();
 }
 
@@ -357,6 +377,7 @@ function switchToImage(aimg) {
     // tell the viewer about the image
     view3D.setImage(aimg);
     
+    view3D.setPathTrace(isPT);
     toggle_raw_seg(myState.selected_seg);
 
     view3D.updateActiveChannels();
@@ -384,8 +405,43 @@ function onImageFullyLoaded(aimg) {
         }
     }
 
+    console.log(phasename + " LOADED");
+
     if (phasename === "M1") {
         switchToImage(aimg);
+    }
+
+    if (phasename === "M7") {
+        var f = gui.addFolder("M7");
+        f.add(myState.m7, "windowMT").max(1.0).min(0.0).step(0.001).onChange(function (j) {
+            return function (value) {
+                const indexTUBA1B = getChannelIndexOfStructure("TUBA1B");
+                myState.loadedImages["M7"].volume.channels[indexTUBA1B].lutGenerator_windowLevel(value, myState.m7.levelMT);
+                view3D.updateLuts();
+            };
+        }(i));
+        f.add(myState.m7, "levelMT").max(1.0).min(0.0).step(0.001).onChange(function (j) {
+            return function (value) {
+                const indexTUBA1B = getChannelIndexOfStructure("TUBA1B");
+                myState.loadedImages["M7"].volume.channels[indexTUBA1B].lutGenerator_windowLevel(myState.m7.windowMT, value);
+                view3D.updateLuts();
+            };
+        }(i));
+        f.add(myState.m7, "windowNuc").max(1.0).min(0.0).step(0.001).onChange(function (j) {
+            return function (value) {
+                const indexNuc = getChannelIndexOfStructure("NUC");
+                myState.loadedImages["M7"].volume.channels[indexNuc].lutGenerator_windowLevel(value, myState.m7.levelNuc);
+                view3D.updateLuts();
+            };
+        }(i));
+        f.add(myState.m7, "levelNuc").max(1.0).min(0.0).step(0.001).onChange(function (j) {
+            return function (value) {
+                const indexNuc = getChannelIndexOfStructure("NUC");
+                myState.loadedImages["M7"].volume.channels[indexNuc].lutGenerator_windowLevel(myState.m7.windowNuc, value);
+                view3D.updateLuts();
+            };
+        }(i));
+
     }
 }
 
@@ -562,6 +618,24 @@ btnpreset0.addEventListener("click", ()=>{
 const btnpreset1 = document.getElementById("PRESET_1");
 btnpreset1.addEventListener("click", ()=>{
     enableChannels(["LAMP1", "ST6GAL1", "ACTN1", "FBL"]);
+});
+const btnpreset2 = document.getElementById("PRESET_2");
+btnpreset2.addEventListener("click", ()=>{
+    if (switchToImage(myState.loadedImages["M7"])) {
+        enableChannels(["TUBA1B", "NUC"]);
+        const indexTUBA1B = getChannelIndexOfStructure("TUBA1B");
+        view3D.image.volume.channels[indexTUBA1B].lutGenerator_windowLevel(0.455, 0.598);
+        const indexNUC = getChannelIndexOfStructure("NUC");
+        view3D.image.volume.channels[indexNUC].lutGenerator_windowLevel(0.488, 0.885);
+        //const indexFBL = getChannelIndexOfStructure("FBL");
+        //view3D.image.volume.channels[indexFBL].lutGenerator_windowLevel(1.0, 0.9);
+        view3D.updateLuts();
+        view3D.setPathTrace(true);
+        isPT = true;
+        view3D.updateLights(myState.lights); 
+        myState.density = 100;
+        view3D.updateDensity(myState.density);
+    }
 });
 
 

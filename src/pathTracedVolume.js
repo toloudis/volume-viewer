@@ -554,11 +554,6 @@ export default class PathTracedVolume {
         this.sampleCounter = 0.0;
       }
 
-      updateDensity(d) {
-        this.pathTracingUniforms.gDensityScale.value = d;
-        this.sampleCounter = 0.0;
-      }
-    
       updateShadingMethod(brdf) {
         this.pathTracingUniforms.gShadingType.value = brdf;
         this.sampleCounter = 0.0;
