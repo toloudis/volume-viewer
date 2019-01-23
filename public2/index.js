@@ -22,6 +22,9 @@ const dataset = {
     names: ["ACTB", "ACTN1", "CENT2", "DSP", "FBL", "LAMP1", "LMNB1", "MYH10", "PMP34", "SEC61B", "ST6GAL1", "TJP1", "TOMM20", "TUBA1B"],
     types: ["raw", "seg"]
 };
+
+const preset_name = "M7";
+
 function make_name(stage, name, type) {
     return "COMP_" + stage + "_atlas.json";
 }
@@ -338,6 +341,7 @@ function showChannelUI(img) {
 
 // raw or seg: 0 or 1
 function toggle_raw_seg(raw_or_seg) {
+    // switch off mem and nuc
     view3D.image.setVolumeChannelEnabled(0, false);
     view3D.image.setVolumeChannelEnabled(1, false);
 
@@ -347,6 +351,7 @@ function toggle_raw_seg(raw_or_seg) {
     }
     view3D.updateActiveChannels();
 
+    // show raw at lower density value than seg
     myState.density = raw_or_seg ? 50.0 : 7.0;
     view3D.updateDensity(myState.density);
 
@@ -411,33 +416,33 @@ function onImageFullyLoaded(aimg) {
         switchToImage(aimg);
     }
 
-    if (phasename === "M7") {
-        var f = gui.addFolder("M7");
+    if (phasename === preset_name) {
+        var f = gui.addFolder("PRESET_PT");
         f.add(myState.m7, "windowMT").max(1.0).min(0.0).step(0.001).onChange(function (j) {
             return function (value) {
                 const indexTUBA1B = getChannelIndexOfStructure("TUBA1B");
-                myState.loadedImages["M7"].volume.channels[indexTUBA1B].lutGenerator_windowLevel(value, myState.m7.levelMT);
+                myState.loadedImages[preset_name].volume.channels[indexTUBA1B].lutGenerator_windowLevel(value, myState.m7.levelMT);
                 view3D.updateLuts();
             };
         }(i));
         f.add(myState.m7, "levelMT").max(1.0).min(0.0).step(0.001).onChange(function (j) {
             return function (value) {
                 const indexTUBA1B = getChannelIndexOfStructure("TUBA1B");
-                myState.loadedImages["M7"].volume.channels[indexTUBA1B].lutGenerator_windowLevel(myState.m7.windowMT, value);
+                myState.loadedImages[preset_name].volume.channels[indexTUBA1B].lutGenerator_windowLevel(myState.m7.windowMT, value);
                 view3D.updateLuts();
             };
         }(i));
         f.add(myState.m7, "windowNuc").max(1.0).min(0.0).step(0.001).onChange(function (j) {
             return function (value) {
                 const indexNuc = getChannelIndexOfStructure("NUC");
-                myState.loadedImages["M7"].volume.channels[indexNuc].lutGenerator_windowLevel(value, myState.m7.levelNuc);
+                myState.loadedImages[preset_name].volume.channels[indexNuc].lutGenerator_windowLevel(value, myState.m7.levelNuc);
                 view3D.updateLuts();
             };
         }(i));
         f.add(myState.m7, "levelNuc").max(1.0).min(0.0).step(0.001).onChange(function (j) {
             return function (value) {
                 const indexNuc = getChannelIndexOfStructure("NUC");
-                myState.loadedImages["M7"].volume.channels[indexNuc].lutGenerator_windowLevel(myState.m7.windowNuc, value);
+                myState.loadedImages[preset_name].volume.channels[indexNuc].lutGenerator_windowLevel(myState.m7.windowNuc, value);
                 view3D.updateLuts();
             };
         }(i));
@@ -621,7 +626,7 @@ btnpreset1.addEventListener("click", ()=>{
 });
 const btnpreset2 = document.getElementById("PRESET_2");
 btnpreset2.addEventListener("click", ()=>{
-    if (switchToImage(myState.loadedImages["M7"])) {
+    if (switchToImage(myState.loadedImages[preset_name])) {
         enableChannels(["TUBA1B", "NUC"]);
         const indexTUBA1B = getChannelIndexOfStructure("TUBA1B");
         view3D.image.volume.channels[indexTUBA1B].lutGenerator_windowLevel(0.455, 0.598);
